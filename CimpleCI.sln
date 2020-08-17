@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CimpleCI", "CimpleCI\CimpleCI.csproj", "{62BFCD56-88C1-474B-B40E-B5848A5E2E81}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Frontend", "Frontend\Frontend.csproj", "{3D10E257-B994-43B2-ABFF-7AC72320AA51}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{62BFCD56-88C1-474B-B40E-B5848A5E2E81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62BFCD56-88C1-474B-B40E-B5848A5E2E81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62BFCD56-88C1-474B-B40E-B5848A5E2E81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62BFCD56-88C1-474B-B40E-B5848A5E2E81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D10E257-B994-43B2-ABFF-7AC72320AA51}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D10E257-B994-43B2-ABFF-7AC72320AA51}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D10E257-B994-43B2-ABFF-7AC72320AA51}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D10E257-B994-43B2-ABFF-7AC72320AA51}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Remove="ASTPrototype.cs" />
+      <Compile Remove="HardcodedRules.cs" />
+      <Compile Remove="ParsersParserVisitor.cs" />
+      <Compile Remove="PrototypeDictionary.cs" />
+      <Compile Remove="ASTNode.cs" />
+      <Compile Remove="FrontendPipeline.cs" />
+    </ItemGroup>
+
+</Project>

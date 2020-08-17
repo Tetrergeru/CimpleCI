@@ -1,0 +1,12 @@
+#Lex
+Colon = ";"
+
+#AST
+Program {
+	Exprs	: *Expression;
+}
+
+#Grammar
+<Program> 
+		-> <Expression> Colon <Program> { $2.Exprs <- $0; return $2; }
+		|  <Expression> Colon 			{ return Program(*Expression($0)); }

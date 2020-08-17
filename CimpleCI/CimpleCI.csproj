@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Remove="Rules.cs" />
+      <Compile Remove="Symbol.cs" />
+      <Compile Remove="SymbolDictionary.cs" />
+      <Compile Remove="Token.cs" />
+      <Compile Remove="Rule.cs" />
+      <Compile Remove="RecursiveParser.cs" />
+      <Compile Remove="Lexer.cs" />
+      <Compile Remove="ASTNode.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Frontend\Frontend.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Parser.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="grammar_0.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Cimple0.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="program_4.c">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+</Project>

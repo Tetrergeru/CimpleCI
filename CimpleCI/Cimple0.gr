@@ -1,0 +1,159 @@
+#Lex
+; Comment		= "//.*\n"
+; Extern		= "#.*\n"
+  Type 			= "u64"
+  OpenCurly 	= "\{"
+  CloseCurly 	= "\}"
+  OpenPar		= "\("
+  ClosePar		= "\)"
+  OpenSquare	= "\["
+  CloseSquare	= "\]"
+  Colon 		= ";"
+  Coma 			= ","
+  If			= "\bif\b"
+  Else			= "\belse\b"
+  While			= "\bwhile\b"
+  Return		= "\breturn\b"
+  Operator		= "(\+=)|(-=)|(\*=)|(/=)|(>>)|(<<)|(!=)|(==)|(<=)|(>=)|\||&|(\|\|)|(&&)|-|\+|\*|/|%|=|<|>|\^|~"
+  Const			= "[0-9][a-zA-Z_0-9]*"
+  Name 			= "[a-zA-Z_][a-zA-Z_0-9]*"
+
+#AST
+
+Program {
+	Functions	: *Function;
+}
+
+Function {
+	Type		: Token;
+	Name		: Token;
+	Params		: *Param;
+	Block		: CodeBlock;
+}
+
+Param {
+	Name		: Token;
+	Type		: Token;
+}
+
+CodeBlock {
+	Operators	: *Operator;
+}
+
+Operator {}
+
+ConditionOperator : Operator {
+	Condition	: Expression;
+	If			: CodeBlock;
+	Else		: CodeBlock;
+}
+
+WhileOperator : Operator {
+	Condition 	: Expression;
+	Body		: CodeBlock;
+}
+
+DeclarationOperator : Operator {
+	Name		: Token;
+	Type		: Token;
+}
+
+ArrayDeclarationOperator : Operator {
+	Name		: Token;
+	Type		: Token;
+	Size		: Token;
+}
+
+ReturnOperator : Operator {
+	Value		: Expression;
+}
+
+ExpressionOperator : Operator {
+	Expression	: Expression;
+}
+
+Expression { }
+
+BinExpression : Expression {
+	Left		: Expression;
+	Op			: Token;
+	Right		: Expression;
+}
+
+UnExpression : Expression {
+	Op			: Token;
+	Right		: Expression;
+}
+
+CallExpression : Expression {
+	Function	: Token;
+	Params		: *Expression;
+}
+
+ConstExpression : Expression {
+	Value		: Token;
+}
+
+NameExpression	: Expression {
+	Name		: Token;
+}
+
+#Grammar
+
+<Program> 
+		-> <Function> <Program> 
+				{ $1.Functions <- $0; return $1; }
+        | 	END	{ return Program(*Function()); }
+
+<Function> 
+		-> Type Name OpenPar <VariableList> ClosePar <CodeBlock>
+				{ return Function($0, $1, $3, $5); }
+
+<VariableList>
+		-> Type Name Coma <VariableList>
+				{ $3 <- Param($1, $0); return $3; }
+        |  Type Name
+				{ return *Param(Param($1, $0)); }
+		| 		{ return *Param(); }
+
+<CodeBlock>
+		-> OpenCurly <CodeList> CloseCurly
+				{ return CodeBlock($1); }
+
+<CodeList> 
+		-> <Operator> <CodeList> 
+				{ $1 <- $0; return $1; }
+        |		{ return *Operator(); }  
+
+<Operator>
+		-> If OpenPar <Expression> ClosePar <CodeBlock> Else <CodeBlock>
+				{ return ConditionOperator($2, $4, $6); }
+        |  Type Name Colon
+				{ return DeclarationOperator($1, $0); }
+		|  Type Name OpenSquare Const CloseSquare Colon
+				{ return ArrayDeclarationOperator($1, $0, $3); }
+		|  While OpenPar <Expression> ClosePar <CodeBlock> 
+				{ return WhileOperator($2, $4); }
+		|  Return <Expression> Colon
+				{ return ReturnOperator($1); }
+		|  <Expression> Colon
+				{ return ExpressionOperator($0); }
+
+<Expression> 
+		-> OpenPar <Expression> Operator <Expression> ClosePar
+				{ return BinExpression($1, $2, $3); }
+        |  OpenPar Operator <Expression> ClosePar
+				{ return UnExpression($1, $2); }
+		|  Name OpenPar <ArgumentList> ClosePar 
+				{ return CallExpression($0, $2); }
+	    |  Const
+				{ return ConstExpression($0); }
+		|  Name
+				{ return NameExpression($0); }
+			  
+<ArgumentList> 
+		-> <Expression> Coma <ArgumentList>
+				{ $2 <- $0; return $2; }
+        |  <Expression>
+				{ return *Expression($0); }
+		| 		{ return *Expression(); }

@@ -1,0 +1,232 @@
+#Lex
+
+HashLex 			= "#Lex"
+HashAST 			= "#AST"
+HashGrammar 		= "#Grammar"
+Dot					= "\."
+DollarVar			= "$[0-9]+"
+Eq 					= "="
+OpenCurly 			= "\{"
+CloseCurly 			= "\}"
+Colon 				= ";"
+Semicolon 			= ":"
+ArrowRight			= "->"
+ArrowLeft			= "<-"
+OpenAngle			= "<"
+CloseAngle			= ">"
+OpenPar				= "\("
+ClosePar			= "\)"
+VBar				= "\|"
+Return				= "\breturn\b"
+Name 				= "[a-zA-Z_][a-zA-Z_0-9]*"
+Regex 				= "\".*\""
+; Comment 			= "/\*.*/\*"
+
+#AST
+
+Parser {
+	Lexer		: Lexer;
+	AST			: AST;
+	Grammar		: Grammar;
+}
+
+/* ===== Lexer ===== */
+
+Lexer {
+	Lexemes		: *Lexeme;
+}
+
+Lexeme {
+	Name		: Token;
+	Regex		: Token;
+}
+
+Comment : Lexeme {}
+
+/* ===== AST ===== */
+
+AST {
+	Nodes		: *ASTNode;
+}
+
+ASTNode {
+	Name		: Token;
+	Parent		: Token;
+	Fields		: *Field;
+}
+
+Field {
+	Name		: Token;
+	Type		: FieldType;
+}
+
+FieldType {}
+
+AtomType : FieldType {
+	Name		: Token;
+}
+
+ListType : FieldType {
+	Of			: FieldType;
+}
+
+/* ===== Grammar ===== */
+
+Grammar {
+	Rules		: *Rule;
+}
+
+Rule {
+	Left		: NonTerminal;
+	Rights		: *RuleRight;
+}
+
+Symbol {
+	Name		: Token;
+}
+
+Terminal : Symbol {}
+
+NonTerminal : Symbol {}
+
+RuleRight {
+	Sequence	: *Symbol;
+	Callback	: Callback;
+}
+
+Callback : {
+	Statements	: *Statement;
+}
+
+Statement {}
+
+ReturnStatement : Statement {
+	Expr		: Expression;
+}
+
+AddStatement : Statement {
+	List		: Getter;
+	Value		: Expression;
+}
+
+Expression {}
+
+Getter : Expression {
+	Variable	: Token;
+	Getters		: *Token;
+}
+
+Constuctor : Expression {
+	Type		: FieldType;
+	Params		: *Expression;
+}
+
+#Grammar
+
+<Parser>
+		-> HashLex <Lexer> HashAST <AST> HashGrammar <Grammar> 
+				{ return Parser($0, $1, $2); }
+
+/* ===== Lexer ===== */
+
+<Lexer>
+		-> <Lexeme> <Lexer>
+				{ $1.Lexemes <- $0; return $1; }
+		|  		{ return Lexer(*Lexeme()); }
+				
+<Lexeme>
+		-> Name Eq Regex
+				{ return Lexeme($0, $2); }
+		|  Colon Name Eq Regex
+				{ return Comment($1, $3); }
+
+/* ===== AST ===== */
+
+<AST>
+		-> <ASTNode> <AST>
+				{ $1.Nodes <- $0; return $1; }
+		|		{ return AST(*ASTNode()); }
+
+<ASTNode>
+		-> Name OpenCurly <Fields> CloseCurly
+				{ return ASTNode($0, Object, $2); }
+		|  Name Semicolon Name OpenCurly <Fields> CloseCurly
+				{ return ASTNode($0, $2, $4); }
+
+<Fields>
+		-> Name Semicolon <FieldType> Colon <Fields>
+				{ $4 <- Field($0, $2); return $4; }
+		| 		{ return *Field(); }
+
+<FieldType>
+		-> Name	{ return AtomType($0); }
+		|  Star <Type>
+				{ return ListType($1); }
+
+/* ===== Grammar ===== */
+
+<Grammar>
+		-> <Rule> <Grammar>
+				{ $1.Rules <- $0; return $1; }
+		|		{ return Grammar(*Rule()); }
+
+<Rule>
+		-> <NonTerminal> ArrowRight <RuleRights>
+				{ return Rule($0, $2); }
+
+<RuleRights> 
+		-> <RuleRight> VBar <RuleRights>
+				{ $2 <- $0; return $2; }
+		|  <RuleRight>
+				{ return *RuleRight($0); }
+				
+<RuleRight>
+		-> <SymbolSequence> <Callback>
+				{ return RuleRight($0, $1); }
+				
+<SymbolSequence>
+		-> <Symbol> <SymbolSequence>
+				{ $1 <- $0; return $1; }
+		|		{ return *Symbol(); }
+
+/* ==================== */
+
+<Symbol>
+		-> OpenAngle Name CloseAngle
+				{ return NonTerminal($1); }
+		|  Name { return Terminal($0); }
+
+<Callback>
+		-> OpenCurly <Statements> CloseCurly
+				{ return Callback($1); }
+
+<Statements>
+		-> <Statement> Colon <Statements>
+				{ $2 <- $0; return $2; }
+		|		{ return *Statement(); }
+
+<Statement>
+		-> Return <Expression>
+				{ return ReturnStatement($1); }
+		|  <Getter> ArrowLeft <Expression>
+				{ return AddStatement($0, $2); }
+
+<Expression>
+		-> DollarVar <Getters>
+				{ return Getter($0, $1); }
+		|  <FieldType> OpenPar <ExprList> ClosePar
+				{ return Constuctor($0, $2); }
+
+/* ==================== */
+
+<Getters>
+		-> Dot Name <Getters>
+				{ $2 <- $1; return $2; }
+		| 		{ return *Token(); }
+
+<ExprList>
+		-> <Expression> Coma <ExprList>
+				{ $2 <- $0; return $2; }
+		|  <Expression>
+				{ return *Expression($0); }
+		|		{ return *Expression(); }
