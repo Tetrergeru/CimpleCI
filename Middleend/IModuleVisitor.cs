@@ -23,6 +23,8 @@ namespace Middleend
         T VisitPointerType(PointerType pointerType);
 
         T VisitStructType(StructType structType);
+
+        T VisitArrayType(ArrayType arrayType);
         
         // Visit Statements
         

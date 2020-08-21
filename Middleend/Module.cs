@@ -6,6 +6,11 @@ namespace Middleend
     {
         public readonly List<IEntity> Entities;
 
+        public Module(List<IEntity> entities)
+        {
+            Entities = entities;
+        }
+
         public T AcceptVisitor<T>(IModuleVisitor<T> visitor)
             => visitor.VisitModule(this);
     }

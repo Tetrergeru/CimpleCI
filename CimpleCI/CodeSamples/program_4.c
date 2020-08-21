@@ -24,15 +24,5 @@ u64 mul_r(u64 xx, u64 yy)
 
 u64 main()
 {
-	//u64 x;
-	//(x = 0xffff);
-	//(x = (2 == 2));
-	//if (x)
-	//{
-		printd(mul_r(10,5));
-	//}
-	//else
-	//{
-	//	printd(42);
-	//}
+	printd(mul_r(10,5));
 }

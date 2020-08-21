@@ -17,7 +17,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Backend\Backend.csproj" />
       <ProjectReference Include="..\Frontend\Frontend.csproj" />
+      <ProjectReference Include="..\Middleend\Middleend.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -31,6 +33,24 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <None Update="program_4.c">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Grammars\Cimple0.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Grammars\grammar_0.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Grammars\Parser.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Grammars\ParsersParser.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="CodeSamples\program_4.c">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="CodeSamples\tcp_server.c">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>

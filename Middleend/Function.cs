@@ -10,9 +10,9 @@ namespace Middleend
 
         public readonly FunctionType Type;
 
-        public readonly List<Statement> Code;
+        public readonly Block Code;
 
-        public Function(string name, FunctionType type, List<Statement> code)
+        public Function(string name, FunctionType type, Block code)
         {
             Name = name;
             Type = type;

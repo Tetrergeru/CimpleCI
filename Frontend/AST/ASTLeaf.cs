@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Frontend.Lexer;
 
 namespace Frontend.AST
@@ -11,6 +12,8 @@ namespace Frontend.AST
 
         public int Id() => _id;
         
+        public string Text => _token.Text;
+        
         public ASTLeaf(Token token, int id)
         {
             _token = token;
@@ -19,6 +22,9 @@ namespace Frontend.AST
 
         public IASTNode this[string name] 
             => throw new Exception("Cannot get field of a leaf.");
+
+        public IEnumerable<IASTNode> Enumerate()
+            => throw new Exception("Cannot enumerate a leaf.");
 
         public void Print(SymbolDictionary sd, string offset = "")
         {

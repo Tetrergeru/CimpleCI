@@ -23,6 +23,9 @@ namespace Frontend.AST
         public IASTNode this[string name] 
             => _values[prototype.IdxOf(name)];
 
+        public IEnumerable<IASTNode> Enumerate()
+            => _values;
+
         public void Print(SymbolDictionary sd, string offset = "")
         {
             Console.WriteLine($"{offset}{prototype.Name()}:");

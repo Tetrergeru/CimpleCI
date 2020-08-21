@@ -35,7 +35,33 @@ namespace Middleend.Expressions
 
     public static class OperationKindClass
     {
-        public static string ToString(this OperationKind operationKind)
+        public static OperationKind ParseOp(string operation, bool binary)
+            => operation switch
+            {
+                "+" => OperationKind.Add,
+                "-" => OperationKind.Subtract,
+                "*" => binary ? OperationKind.Multiply : OperationKind.Dereference,
+                "/" => OperationKind.Divide,
+                "%" => OperationKind.Remainder,
+                "<<" => OperationKind.ShiftLeft,
+                ">>" => OperationKind.ShiftRight,
+                "&" => binary ? OperationKind.BitAnd : OperationKind.Reference,
+                "|" => OperationKind.BitOr,
+                "^" => OperationKind.BitXor,
+                "~" => OperationKind.BitNot,
+                "&&" => OperationKind.And,
+                "||" => OperationKind.Or,
+                "!" => OperationKind.Not,
+                "<" => OperationKind.Less,
+                "<=" => OperationKind.LessEqual,
+                "==" => OperationKind.Equal,
+                "!=" => OperationKind.NotEqual,
+                ">=" => OperationKind.GreaterEqual,
+                ">" => OperationKind.Greater,
+                _ => throw new ArgumentException()
+            };
+        
+        public static string ToSymbol(this OperationKind operationKind)
             => operationKind switch
             {
                 OperationKind.Add => "+",

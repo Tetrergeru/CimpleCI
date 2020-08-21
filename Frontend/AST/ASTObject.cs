@@ -1,33 +1,37 @@
 ﻿using System;
+using System.Collections.Generic;
 using Frontend.Lexer;
 
 namespace Frontend.AST
 {
     public class ASTObject : IASTNode
     {
-        private readonly NodePrototype prototype;
+        public readonly NodePrototype Prototype;
 
-        private readonly IASTNode[] _values;
+        public readonly IASTNode[] Values;
         
         public ASTObject(NodePrototype prototype, params IASTNode[] args)
         {
-            this.prototype = prototype;
-            _values = args;
+            this.Prototype = prototype;
+            Values = args;
         }
 
         public int Id()
-            => prototype.Id();
+            => Prototype.Id();
 
         public IASTNode this[string name] 
-            => _values[prototype.IdxOf(name)];
+            => Values[Prototype.IdxOf(name)];
+
+        public IEnumerable<IASTNode> Enumerate()
+            => Values;
 
         public void Print(SymbolDictionary sd, string offset = "")
         {
-            Console.WriteLine($"{offset}{prototype.Name()}:");
-            foreach(var field in prototype.Names())
+            Console.WriteLine($"{offset}{Prototype.Name()}:");
+            foreach(var field in Prototype.Names())
             {
                 Console.WriteLine($"{offset}   {field}:");
-                _values[prototype.IdxOf(field)].Print(sd, $"{offset}      ");
+                Values[Prototype.IdxOf(field)].Print(sd, $"{offset}      ");
             }
         }
     }

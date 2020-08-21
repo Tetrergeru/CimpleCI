@@ -13,9 +13,10 @@
 
         public readonly int BitSize;
 
-        public NumberType(NumberKind numberKind)
+        public NumberType(NumberKind numberKind, int bitSize)
         {
             NumberKind = numberKind;
+            BitSize = bitSize;
         }
 
         public override T AcceptVisitor<T>(IModuleVisitor<T> visitor)
