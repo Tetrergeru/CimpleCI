@@ -50,6 +50,7 @@ namespace CimpleCI
                     expr["Params"].Enumerate().Select(VisitExpression).ToList()),
                 "ConstExpression" => new ConstExpression(u64, VisitName(expr["Value"])),
                 "NameExpression" => new NameExpression(VisitName(expr["Name"])),
+                "ParExpression" => new ParExpression(VisitExpression(expr["Expr"])),
                 _ => throw new ArgumentException()
             };
         }

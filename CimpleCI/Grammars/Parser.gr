@@ -1,28 +1,31 @@
 #Lex
-Colon = ";"
-Minus = "-"
-Plus = "\+"
-Star = "\*"
-LeftPar = "\("
-RightPar = "\)"
-Name = "[a-zA-Z_][a-zA-Z_0-9]*"
-Regex = "\".*\""
-; Comment = "/\*.*\*/"
+  Colon    = ";"
+  Minus    = "-"
+  Plus     = "\+"
+  Star     = "\*"
+  LeftPar  = "\("
+  RightPar = "\)"
+  Name     = "[a-zA-Z_][a-zA-Z_0-9]*"
+; Comment  = "/\*.*\*/"
 
 #AST
 Program {
 	Exprs	: *Expression;
 }
+
 Expression {}
+
 UnaryExpression : Expression {
 	Op 		: Token;
 	Right 	: Expression;
 }
+
 BinExpression : Expression {
 	Left	: Expression;
 	Op		: Token;
 	Right	: Expression;
 }
+
 ParExpression : Expression {
 	Expr	: Expression;
 }
@@ -30,24 +33,35 @@ ParExpression : Expression {
 #Grammar
 
 <Program> 
-		-> <Expression> Colon <Program> { $2.Exprs <- $0; return $2; }
-		|  <Expression> Colon END		{ return Program(*Expression($0)); }
+		-> <Expression> Colon <Program> 
+				{ $2.Exprs <- $0; return $2; }
+		|  END
+				{ return Program(*Expression()); }
 
 <Expression>
-		-> <Unary> 						{ return $0; }
+		-> <Unary> 						
+				{ return $0; }
 
 <Unary>
-		-> Minus <Unary> 				{ return UnaryExpression($0, $1); }
-		|  <Multiplication>				{ return $0; }
+		-> Minus <Unary> 				
+				{ return UnaryExpression($0, $1); }
+		|  <Multiplication>				
+				{ return $0; }
 
 <Multiplication>
-		-> <Addition> Star <Multiplication>		{ return BinExpression($0, $1, $2); }
-		|  <Addition> 					{ return $0; }
+		-> <Addition> Star <Multiplication>		
+				{ return BinExpression($0, $1, $2); }
+		|  <Addition> 					
+				{ return $0; }
 
 <Addition>
-		-> <Primary> Plus <Addition>	{ return BinExpression($0, $1, $2); }
-		|  <Primary>					{ return $0; }
+		-> <Primary> Plus <Addition>	
+				{ return BinExpression($0, $1, $2); }
+		|  <Primary>					
+				{ return $0; }
 
 <Primary>
-		-> LeftPar <Expression> RightPar		{ return ParExpression($1); }
-		| Name 							{ return $0; }
+		-> LeftPar <Expression> RightPar		
+				{ return ParExpression($1); }
+		| Name 							
+				{ return $0; }

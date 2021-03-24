@@ -1,23 +1,33 @@
 #Lex
-; Multiline 	= "/\*(.|\s)*\*/"
-; Comment		= "//.*\n"
-; Extern		= "#.*\n"
-  Type 			= "u64"
-  OpenCurly 	= "\{"
-  CloseCurly 	= "\}"
-  OpenPar		= "\("
-  ClosePar		= "\)"
-  OpenSquare	= "\["
-  CloseSquare	= "\]"
-  Colon 		= ";"
-  Coma 			= ","
-  If			= "\bif\b"
-  Else			= "\belse\b"
-  While			= "\bwhile\b"
-  Return		= "\breturn\b"
-  Operator		= "(\+=)|(-=)|(\*=)|(/=)|(>>)|(<<)|(!=)|(==)|(<=)|(>=)|\||&|(\|\|)|(&&)|-|\+|\*|/|%|=|<|>|\^|~"
-  Const			= "[0-9][a-zA-Z_0-9]*"
-  Name 			= "[a-zA-Z_][a-zA-Z_0-9]*"
+; Comment		 = "//.*\n"
+; Extern		 = "#.*\n"
+  Type 			 = "u64"
+  OpenCurly 	 = "\{"
+  CloseCurly 	 = "\}"
+  OpenPar		 = "\("
+  ClosePar		 = "\)"
+  OpenSquare	 = "\["
+  CloseSquare	 = "\]"
+  Colon 		 = ";"
+  Coma 			 = ","
+  If			 = "\bif\b"
+  Else			 = "\belse\b"
+  While			 = "\bwhile\b"
+  Return		 = "\breturn\b"
+  OpAssign       = "=|(\+=)|(-=)|(\*=)|(/=)"
+  OpShift        = "(>>)|(<<)"
+  OpAdd          = "\+|-"
+  Star           = "\*"
+  OpAmpers       = "&"
+  OpDiv          = "/|%"
+  OpBitXor       = "^"
+  OpBitNot       = "~"
+  OpBitAnd       = "&"
+  OpBitOr        = "\|"
+  OpEq           = "(!=)|(==)"
+  OpCmp          = "<|(<=)|(>=)|>"
+  Const			 = "[0-9][a-zA-Z_0-9]*"
+  Name 			 = "[a-zA-Z_][a-zA-Z_0-9]*"
 
 #AST
 
@@ -91,6 +101,10 @@ CallExpression : Expression {
 	Params		: *Expression;
 }
 
+ParExpression : Expression {
+	Expr		: Expression;
+}
+
 ConstExpression : Expression {
 	Value		: Token;
 }
@@ -141,17 +155,88 @@ NameExpression	: Expression {
 				{ return ExpressionOperator($0); }
 
 <Expression> 
-		-> OpenPar <Expression> Operator <Expression> ClosePar
-				{ return BinExpression($1, $2, $3); }
-        |  OpenPar Operator <Expression> ClosePar
-				{ return UnExpression($1, $2); }
-		|  Name OpenPar <ArgumentList> ClosePar 
+		-> <AssignmentExpression>
+				{ return $0; }
+
+<AssignmentExpression>
+		-> <BitwiseXor> OpAssign <AssignmentExpression>
+				{ return BinExpression($0, $1, $2); }
+		|  <BitwiseXor>
+				{ return $0; }
+
+<BitwiseOr>
+		-> <BitwiseXor> OpBitOr <BitwiseOr>
+				{ return BinExpression($0, $1, $2); }
+		|  <BitwiseXor>
+				{ return $0; }
+
+<BitwiseXor>
+		-> <BitwiseAnd> OpBitXor <BitwiseXor>
+				{ return BinExpression($0, $1, $2); }
+		|  <BitwiseAnd>
+				{ return $0; }
+<BitwiseAnd>
+		-> <Equality> OpBitAnd <BitwiseAnd>
+				{ return BinExpression($0, $1, $2); }
+		|  <Equality>
+				{ return $0; }
+
+<Equality>
+		-> <Comparison> OpEq <Equality>
+				{ return BinExpression($0, $1, $2); }
+		|  <Comparison>
+				{ return $0; }
+
+<Comparison>
+		-> <Shift> OpCmp <Comparison>
+				{ return BinExpression($0, $1, $2); }
+		|  <Shift>
+				{ return $0; }
+				
+<Shift>
+		-> <Addition> OpShift <Shift>
+				{ return BinExpression($0, $1, $2); }
+		|  <Addition>
+				{ return $0; }
+
+<Addition>
+		-> <Multiplication> OpAdd <Addition>
+				{ return BinExpression($0, $1, $2); }
+		|  <Multiplication>
+				{ return $0; }
+
+<OpMult>
+		-> OpDiv { return $0; }
+		|  Star  { return $0; }
+
+<Multiplication>
+		-> <Unary> <OpMult> <Multiplication>
+				{ return BinExpression($0, $1, $2); }
+		|  <Unary>
+				{ return $0; }
+
+<OpUnary>
+		-> OpAdd { return $0; }
+		|  Star { return $0; }
+		|  OpAmpers { return $0; }
+
+<Unary>
+		-> <OpUnary> <Unary>
+				{ return UnExpression($0, $1); }
+		|  <Primary>
+				{ return $0; }
+
+<Primary>
+		-> Name OpenPar <ArgumentList> ClosePar 
 				{ return CallExpression($0, $2); }
 	    |  Const
 				{ return ConstExpression($0); }
 		|  Name
 				{ return NameExpression($0); }
-			  
+        |  OpenPar <Expression> ClosePar
+				{ return ParExpression($1); }
+		
+
 <ArgumentList> 
 		-> <Expression> Coma <ArgumentList>
 				{ $2 <- $0; return $2; }

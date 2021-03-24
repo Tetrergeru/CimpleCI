@@ -21,18 +21,18 @@ namespace Frontend.Lexer
 
         private int _line = 0; 
         
-        public RegexLexer(Dictionary<string, (string code, bool isComment)> rules, SymbolDictionary symbolDictionary)
+        public RegexLexer(List<(string terminal, (string code, bool isComment) code)> rules, SymbolDictionary symbolDictionary)
         {
             _symbolDictionary = symbolDictionary;
-            foreach (var name in rules.Keys)
-                _symbolDictionary.Register(name, rules[name].isComment ? SymbolType.Comment : SymbolType.Terminal);
+            foreach (var (name, (_, isComment)) in rules)
+                _symbolDictionary.Register(name, isComment ? SymbolType.Comment : SymbolType.Terminal);
             _symbolDictionary.Register("END", SymbolType.Terminal);
             _symbolDictionary.Register("SPACE", SymbolType.Comment);
             
             
             var strRules = string.Join("|",
                 rules
-                    .Select(kv => $"(?<{kv.Key}>{kv.Value.code})"));
+                    .Select(kv => $"(?<{kv.terminal}>{kv.code.code})"));
 
             _regex = new Regex($"{strRules}|(?<SPACE>\\s)|.");
         }

@@ -1,6 +1,8 @@
-bin
-obj
-packages
+*bin
+*/obj
+*packages
 \.vs
 \.idea
 *.DotSettings.*
+
+*.cache

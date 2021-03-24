@@ -23,7 +23,7 @@ namespace Frontend
 
         public static RegexLexer ParseLexer(string code)
         {
-            var rules = new Dictionary<string, (string, bool)>();
+            var rules = new List<(string, (string, bool))>();
 
             var sd = new SymbolDictionary();
             var lexerRules = new Dictionary<string, string>
@@ -32,8 +32,8 @@ namespace Frontend
                 ["Colon"] = ";",
                 ["Name"] = "[a-zA-Z_][a-zA-Z_0-9]*",
                 ["Regex"] = "\".*\"",
-            }.ToDictionary(kv => kv.Key, kv => (kv.Value, false));
-            var lexer = new RegexLexer(lexerRules, sd);
+            }.Select(kv => (kv.Key, (kv.Value, false)));
+            var lexer = new RegexLexer(lexerRules.ToList(), sd);
 
             const SymbolType T = SymbolType.Terminal;
             var idEND = sd["END", T];
@@ -55,7 +55,7 @@ namespace Frontend
                 AssertType(tokens[i + 2], idRegex, "Regex");
 
                 var regex = tokens[i + 2].Text;
-                rules[tokens[i].Text] = (regex.Substring(1, regex.Length - 2), isComment);
+                rules.Add((tokens[i].Text, (regex.Substring(1, regex.Length - 2), isComment)));
                 i += 3;
             }
 
@@ -72,7 +72,7 @@ namespace Frontend
                 ["Colon"] = ";",
                 ["Star"] = "\\*",
                 ["Name"] = "[a-zA-Z_][a-zA-Z_0-9]*",
-            }.ToDictionary(kv => kv.Key, kv => (kv.Value, false)), new SymbolDictionary());
+            }.Select(kv => (kv.Key, (kv.Value, false))).ToList(), new SymbolDictionary());
 
             private readonly int _idOpenCurly, _idCloseCurly, _idSemicolon, _idColon, _idStar, _idName, _idEND;
 
@@ -187,6 +187,7 @@ namespace Frontend
         {
             private readonly RegexLexer _lexer = new RegexLexer(new Dictionary<string, string>
             {
+                ["Comment"] = "/\\*(.|\\n)*\\*/",
                 ["OpenCurly"] = "\\{",
                 ["CloseCurly"] = "\\}",
                 ["Dot"] = "\\.",
@@ -203,7 +204,7 @@ namespace Frontend
                 ["VBar"] = "\\|",
                 ["Return"] = "\\breturn\\b",
                 ["Name"] = "[a-zA-Z_][a-zA-Z_0-9]*",
-            }.ToDictionary(kv => kv.Key, kv => (kv.Value, false)), new SymbolDictionary());
+            }.Select(kv => (kv.Key, (kv.Value, kv.Key == "Comment"))).ToList(), new SymbolDictionary());
 
             private readonly int
                 _idOpenCurly,

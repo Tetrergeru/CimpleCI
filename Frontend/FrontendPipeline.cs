@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Frontend.AST;
 using Frontend.Lexer;
 using Frontend.Parser;
@@ -15,7 +16,9 @@ namespace Frontend
         public FrontendPipeline(string grammar)
         {
             var parsedGrammar = grammar.Split("#Lex")
-                .SelectMany(s => s.Split("#AST").SelectMany(s => s.Split("#Grammar"))).ToList();
+                .SelectMany(s => s.Split("#AST")
+                    .SelectMany(s => s.Split("#Grammar")))
+                .ToList();
             
             _lexer = ParsersParser.ParseLexer(parsedGrammar[1]);
             _symbolDictionary = _lexer.SymbolDictionary();
@@ -25,5 +28,15 @@ namespace Frontend
 
         public IASTNode Parse(string code)
             => _parser.Parse(_lexer.ParseLexemes(code).ToList());
+
+        public void Print(IASTNode node)
+        {
+            if (node == null)
+            {
+                Console.WriteLine("NONE");
+                return;
+            }
+            node.Print(_symbolDictionary);
+        }
     }
 }
