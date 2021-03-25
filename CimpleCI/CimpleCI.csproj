@@ -59,6 +59,9 @@
       <None Update="CodeSamples\program_0.c">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="CodeSamples\program_2.c1">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

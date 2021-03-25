@@ -84,9 +84,9 @@ namespace Backend
             => $"{Tab}return {@return.Value.AcceptVisitor(this)};";
 
         public string VisitBinaryExpression(BinaryExpression binaryExpression)
-            => $"{binaryExpression.Left.AcceptVisitor(this)} " +
+            => $"({binaryExpression.Left.AcceptVisitor(this)} " +
                $"{binaryExpression.Operator.ToSymbol()} " +
-               $"{binaryExpression.Right.AcceptVisitor(this)}";
+               $"{binaryExpression.Right.AcceptVisitor(this)})";
 
         public string VisitUnaryExpression(UnaryExpression unaryExpression)
             => $"{unaryExpression.Operator.ToSymbol()}" +

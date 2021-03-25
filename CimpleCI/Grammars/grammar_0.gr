@@ -1,12 +1,44 @@
 #Lex
-Colon = ";"
+  Plus           = "\+"
+  Minus          = "-"
+  Star           = "\*"
+  LeftPar		 = "\("
+  RightPar		 = "\)"
+  Const			 = "[0-9][a-zA-Z_0-9]*"
 
 #AST
-Program {
-	Exprs	: *Expression;
+Expression { }
+
+BinExpression : Expression {
+	Left		: Expression;
+	Op			: Token;
+	Right		: Expression;
+}
+
+UnExpression : Expression {
+	Op			: Token;
+	Right		: Expression;
 }
 
 #Grammar
-<Program> 
-		-> <Expression> Colon <Program> { $2.Exprs <- $0; return $2; }
-		|  <Expression> Colon 			{ return Program(*Expression($0)); }
+<program>
+    -> <expression> END                     { return $0; }
+
+<expression>
+    -> <addition>                           { return $0; }
+    
+<addition> 
+    -> <multiplication> Plus <addition>     { return BinExpression($0, $1, $2); }
+    |  <multiplication>                     { return $0; }
+     
+<multiplication> 
+    -> <unary> Star <multiplication>        { return BinExpression($0, $1, $2); }
+    |  <unary>                              { return $0; }
+     
+<unary>
+    -> Minus <unary>                        { return UnExpression($0, $1); }
+     | <primary>                            { return $0; }
+
+<primary>
+    -> Const                                { return $0; }
+    |  LeftPar <expression> RightPar        { return $1; }

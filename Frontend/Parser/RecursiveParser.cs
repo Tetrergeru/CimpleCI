@@ -5,7 +5,7 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser
 {
-    public class RecursiveParser
+    public class RecursiveParser : IParser
     {
         private readonly Rules _rules;
 
@@ -13,7 +13,7 @@ namespace Frontend.Parser
 
         private List<Token> _code;
         
-        public RecursiveParser(Rules rules, SymbolDictionary symbolDictionary )
+        public RecursiveParser(Rules rules, SymbolDictionary symbolDictionary)
         {
             _symbolDictionary = symbolDictionary;
             _rules = rules;

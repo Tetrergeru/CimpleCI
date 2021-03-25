@@ -11,7 +11,7 @@ namespace Frontend
         private readonly RegexLexer _lexer;
         private readonly SymbolDictionary _symbolDictionary;
         private readonly PrototypeDictionary _prototypeDictionary;
-        private readonly RecursiveParser _parser;
+        private readonly IParser _parser;
 
         public FrontendPipeline(string grammar)
         {

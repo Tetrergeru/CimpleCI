@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace Frontend.Parser
 {
@@ -22,7 +23,10 @@ namespace Frontend.Parser
 
         public Rule this[int index] => RuleList[index];
 
-        public IEnumerable<int> RuleGroup(int nonTerminal) 
+        public List<int> RuleGroup(int nonTerminal) 
             => RuleGroups[nonTerminal];
+        
+        public List<Rule> FullRuleGroup(int nonTerminal) 
+            => RuleGroups[nonTerminal].Select(id => RuleList[id]).ToList();
     }
 }

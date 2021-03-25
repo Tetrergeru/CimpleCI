@@ -4,6 +4,7 @@ using System.Linq;
 using Frontend.AST;
 using Frontend.Lexer;
 using Frontend.Parser;
+using Frontend.Parser.Ll1Parser;
 
 namespace Frontend
 {
@@ -266,7 +267,7 @@ namespace Frontend
                     throw new Exception($"Expected {expected}, but got {token.Text}, on line {token.Line}");
             }
 
-            public RecursiveParser Parse(string code)
+            public IParser Parse(string code)
             {
                 _tokens = _lexer.ParseLexemes(code).ToList();
                 ParseGrammar();
@@ -274,7 +275,7 @@ namespace Frontend
                     if (!_resultSD.ContainsKey(nt, SymbolType.NonTerminal))
                         _resultSD.RegisterNonTerminal(nt);
                 
-                return new RecursiveParser(new Rules(_rules
+                return new Ll1Parser(new Rules(_rules
                     .Select(nsc => new Rule(
                         _resultSD[nsc.nt, SymbolType.NonTerminal],
                         nsc.seq.Select(s => _resultSD[s.name, s.type]).ToList(),
@@ -410,7 +411,7 @@ namespace Frontend
             }
         }
 
-        public static RecursiveParser ParseGrammar(string code, RegexLexer lexer, PrototypeDictionary pd)
+        public static IParser ParseGrammar(string code, RegexLexer lexer, PrototypeDictionary pd)
             => new GrammarParser(lexer, pd).Parse(code);
     }
 }
