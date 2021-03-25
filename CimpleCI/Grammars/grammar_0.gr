@@ -1,4 +1,5 @@
 #Lex
+; Space          = "\\s*"
   Plus           = "\+"
   Minus          = "-"
   Star           = "\*"

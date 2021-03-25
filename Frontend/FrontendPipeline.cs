@@ -3,6 +3,7 @@ using System.Linq;
 using Frontend.AST;
 using Frontend.Lexer;
 using Frontend.Parser;
+using Frontend.Parser.Ll1Parser;
 
 namespace Frontend
 {
@@ -15,15 +16,10 @@ namespace Frontend
 
         public FrontendPipeline(string grammar)
         {
-            var parsedGrammar = grammar.Split("#Lex")
-                .SelectMany(s => s.Split("#AST")
-                    .SelectMany(s => s.Split("#Grammar")))
-                .ToList();
-            
-            _lexer = ParsersParser.ParseLexer(parsedGrammar[1]);
+            Rules rules;
+            (_lexer, _prototypeDictionary, rules) = new ParsersParser().ParseParser(grammar);
             _symbolDictionary = _lexer.SymbolDictionary();
-            _prototypeDictionary = ParsersParser.ParseAST(parsedGrammar[2]);
-            _parser = ParsersParser.ParseGrammar(parsedGrammar[3], _lexer, _prototypeDictionary);
+            _parser = new Ll1Parser(rules, _symbolDictionary);
         }
 
         public IASTNode Parse(string code)
@@ -36,6 +32,7 @@ namespace Frontend
                 Console.WriteLine("NONE");
                 return;
             }
+
             node.Print(_symbolDictionary);
         }
     }

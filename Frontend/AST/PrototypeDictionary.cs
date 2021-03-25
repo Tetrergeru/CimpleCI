@@ -9,7 +9,16 @@ namespace Frontend.AST
         private readonly Dictionary<string, int> _idByName = new Dictionary<string, int>(); 
         
         private readonly List<(string name, IPrototype type)> _nameById = new List<(string, IPrototype)>();
+
+        public readonly NodePrototype Object;
+        public readonly NodePrototype Token;
         
+        public PrototypeDictionary()
+        {
+            Object = MakeNode("Object", null, 0);
+            Token = MakeNode("Token", Object, 0);
+        }
+
         public int Register(string name, IPrototype prototype)
         {
             if (_idByName.ContainsKey(name))
@@ -42,19 +51,13 @@ namespace Frontend.AST
             return lp;
         }
 
-        public IEnumerable<string> Names()
-            => _nameById.Select(x => x.name);
-
-        public IPrototype this[int id]
-            => _nameById[id].type;
-
-        public string GetName(int id)
-            => _nameById[id].name;
-
         public int this[string name]
             => _idByName[name];
         
         public IPrototype GetByName(string name)
             => _nameById[this[name]].type;
+
+        public IPrototype GetOrMakeByName(string name)
+            => name.StartsWith("*") ? GetOrMakeList(name) : GetByName(name);
     }
 }

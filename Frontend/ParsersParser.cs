@@ -8,410 +8,369 @@ using Frontend.Parser.Ll1Parser;
 
 namespace Frontend
 {
-    public static class ParsersParser
+    public class ParsersParser
     {
-        private static void AssertType(Token token, int type, string expected)
+        private readonly ParsersLexer _lexer = new ParsersLexer();
+
+        private List<Token> _code;
+
+        private int _position;
+
+        private bool CanPeek() => _position < _code.Count;
+
+        private Token Peek() => _code[_position];
+
+        private string TokenName(int id)
+            => _lexer.SymbolDictionary[id].name;
+
+        private string TokensNames(IEnumerable<int> tokens)
+            => string.Join(", ", tokens.Select(TokenName));
+
+        public (RegexLexer, PrototypeDictionary, Rules) ParseParser(string code)
         {
-            if (token.Id != type)
-                throw new Exception($"Expected {expected}, but got {token.Text}, on line {token.Line}");
+            _code = _lexer.ParseAll(code).ToList();
+            var parsedLexer = ParseLexer();
+            var pd = ParseAST();
+            var parsedGrammar = ParseGrammar(parsedLexer.SymbolDictionary(), pd);
+            Consume(_lexer.END);
+            return (parsedLexer, pd, parsedGrammar);
         }
 
-        private static void AssertLength<T>(List<T> list, int position)
+        /* ===== LEXER ===== */
+
+        private RegexLexer ParseLexer()
         {
-            if (position >= list.Count)
-                throw new Exception("Unexpected end of the file");
-        }
-
-        public static RegexLexer ParseLexer(string code)
-        {
-            var rules = new List<(string, (string, bool))>();
-
-            var sd = new SymbolDictionary();
-            var lexerRules = new Dictionary<string, string>
+            Consume(_lexer.HashLex);
+            var lexemes = new List<Lexeme>();
+            while (CanPeek() && (Peek().Id == _lexer.Semicolon || Peek().Id == _lexer.Name))
             {
-                ["Eq"] = "=",
-                ["Colon"] = ";",
-                ["Name"] = "[a-zA-Z_][a-zA-Z_0-9]*",
-                ["Regex"] = "\".*\"",
-            }.Select(kv => (kv.Key, (kv.Value, false)));
-            var lexer = new RegexLexer(lexerRules.ToList(), sd);
-
-            const SymbolType T = SymbolType.Terminal;
-            var idEND = sd["END", T];
-            var idEq = sd["Eq", T];
-            var idColon = sd["Colon", T];
-            var idName = sd["Name", T];
-            var idRegex = sd["Regex", T];
-
-            var tokens = lexer.ParseLexemes(code).ToList();
-            for (var i = 0; i < tokens.Count && tokens[i].Id != idEND;)
-            {
-                var isComment = false;
-                if (tokens[i].Id == idColon)
-                    (isComment, i) = (true, i + 1);
-
-                AssertLength(tokens, i + 2);
-                AssertType(tokens[i], idName, "Name");
-                AssertType(tokens[i + 1], idEq, "'='");
-                AssertType(tokens[i + 2], idRegex, "Regex");
-
-                var regex = tokens[i + 2].Text;
-                rules.Add((tokens[i].Text, (regex.Substring(1, regex.Length - 2), isComment)));
-                i += 3;
-            }
-
-            return new RegexLexer(rules, new SymbolDictionary());
-        }
-
-        private class ASTParser
-        {
-            private RegexLexer lexer = new RegexLexer(new Dictionary<string, string>
-            {
-                ["OpenCurly"] = "\\{",
-                ["CloseCurly"] = "\\}",
-                ["Semicolon"] = ":",
-                ["Colon"] = ";",
-                ["Star"] = "\\*",
-                ["Name"] = "[a-zA-Z_][a-zA-Z_0-9]*",
-            }.Select(kv => (kv.Key, (kv.Value, false))).ToList(), new SymbolDictionary());
-
-            private readonly int _idOpenCurly, _idCloseCurly, _idSemicolon, _idColon, _idStar, _idName, _idEND;
-
-            private int _i;
-            
-            private List<Token> _tokens;
-            
-            private readonly PrototypeDictionary _pd = new PrototypeDictionary();
-
-            private readonly Dictionary<string, List<(string name, string type)>> _stringPrototypes
-                = new Dictionary<string, List<(string name, string type)>>();
-
-            public ASTParser()
-            {
-                _idOpenCurly = lexer["OpenCurly"];
-                _idCloseCurly = lexer["CloseCurly"];
-                _idSemicolon = lexer["Semicolon"];
-                _idColon = lexer["Colon"];
-                _idStar = lexer["Star"];
-                _idName = lexer["Name"];
-                _idEND = lexer["END"];
-            }
-
-            public PrototypeDictionary Parse(string code)
-            {
-                var obj = _pd.MakeNode("Object", null, 0);
-                _pd.MakeNode("Token", obj, 0);
-                _tokens = lexer.ParseLexemes(code).ToList();
-                ParseAST();
-                return _pd;
-            }
-
-            private void ParseAST()
-            {
-                for (; _i < _tokens.Count && _tokens[_i].Id != _idEND; _i++)
-                    ParseNode();
-
-                foreach (var (np, fields) in _stringPrototypes)
+                var comment = false;
+                if (Peek().Id == _lexer.Semicolon)
                 {
-                    var prototype = (NodePrototype) _pd.GetByName(np);
-                    foreach (var (s, typeName) in fields)
-                    {
-                        var type = typeName[0] == '*'
-                            ? _pd.GetOrMakeList(typeName)
-                            : _pd.GetByName(typeName);
-                        prototype.RegisterField(s, type);
-                    }
+                    comment = true;
+                    Consume(_lexer.Semicolon);
                 }
 
+                var lexeme = ParseLexemeDeclaration();
+                lexeme.Comment = comment;
+                lexemes.Add(lexeme);
             }
 
-            private void ParseNode()
+            return new RegexLexer(lexemes, new SymbolDictionary());
+        }
+
+        private Lexeme ParseLexemeDeclaration()
+        {
+            var name = Consume(_lexer.Name);
+            Consume(_lexer.Eq);
+            var regex = Consume(_lexer.Regex);
+            return new Lexeme(name.Text, ParseRegexToken(regex));
+        }
+
+        private string ParseRegexToken(Token regex)
+            => regex.Text.Substring(1, regex.Text.Length - 2);
+
+        /* ===== AST ===== */
+
+        struct UnCompiledASTNode
+        {
+            public string Name;
+            public string Parent;
+            public List<(string name, string typeName)> Fields;
+
+            public UnCompiledASTNode(string name, string parent, List<(string, string)> fields)
             {
-                var (node, parent) = ParseHeader();
-                AssertLength(_tokens, _i + 2);
-                AssertType(_tokens[_i + 1], _idOpenCurly, "'{'");
-                _i += 2;
-                var fields = new List<(string name, string type)>();
-                while (_tokens[_i].Id != _idCloseCurly)
-                    fields.Add(ParseField());
-
-                _stringPrototypes[node] = fields;
-                _pd.MakeNode(node, (NodePrototype) _pd.GetByName(parent), fields.Count);
-            }
-
-            private (string name, string parent) ParseHeader()
-            {
-                AssertLength(_tokens, _i + 2);
-                AssertType(_tokens[_i], _idName, "Name");
-                var name = _tokens[_i].Text;
-                if (_tokens[_i + 1].Id != _idSemicolon)
-                    return (name, "Object");
-
-                AssertType(_tokens[_i + 2], _idName, "Name");
-                var parent = _tokens[_i + 2].Text;
-                _i += 2;
-
-                return (name, parent);
-            }
-
-            private (string name, string type) ParseField()
-            {
-                AssertLength(_tokens, _i + 2);
-                AssertType(_tokens[_i], _idName, "Name");
-                AssertType(_tokens[_i + 1], _idSemicolon, "':'");
-                var fName = _tokens[_i].Text;
-                _i += 2;
-                var stars = "";
-                while (_tokens[_i].Id == _idStar)
-                {
-                    stars = $"{stars}*";
-                    _i++;
-                    AssertLength(_tokens, _i);
-                }
-
-                AssertLength(_tokens, _i + 2);
-
-                AssertType(_tokens[_i], _idName, "Name");
-                var fType = $"{stars}{_tokens[_i].Text}";
-
-                AssertType(_tokens[_i + 1], _idColon, "';'");
-                _i += 2;
-
-                return (fName, fType);
+                Name = name;
+                Parent = parent;
+                Fields = fields;
             }
         }
 
-        public static PrototypeDictionary ParseAST(string code)
-            => new ASTParser().Parse(code);
-
-        private class GrammarParser
+        private PrototypeDictionary ParseAST()
         {
-            private readonly RegexLexer _lexer = new RegexLexer(new Dictionary<string, string>
-            {
-                ["Comment"] = "/\\*(.|\\n)*\\*/",
-                ["OpenCurly"] = "\\{",
-                ["CloseCurly"] = "\\}",
-                ["Dot"] = "\\.",
-                ["Coma"]        = ",",
-                ["Star"]        = "\\*",
-                ["OpenPar"]     = "\\(",
-                ["ClosePar"]    = "\\)",
-                ["ArrowRight"] = "->",
-                ["ArrowLeft"] = "<-",
-                ["OpenAngle"] = "<",
-                ["CloseAngle"]  = ">",
-                ["DollarVar"] = "\\$[0-9]+",
-                ["Colon"] = ";",
-                ["VBar"] = "\\|",
-                ["Return"] = "\\breturn\\b",
-                ["Name"] = "[a-zA-Z_][a-zA-Z_0-9]*",
-            }.Select(kv => (kv.Key, (kv.Value, kv.Key == "Comment"))).ToList(), new SymbolDictionary());
+            Consume(_lexer.HashAST);
+            var pd = new PrototypeDictionary();
 
-            private readonly int
-                _idOpenCurly,
-                _idCloseCurly,
-                _idDot,
-                _idComa,
-                _idStar,
-                _idOpenAngle,
-                _idCloseAngle,
-                _idOpenPar,
-                _idClosePar,
-                _idArrowRight,
-                _idArrowLeft,
-                _idDollarVar,
-                _idVBar,
-                _idReturn,
-                _idColon,
-                _idName,
-                _idEND;
+            var nodes = new List<UnCompiledASTNode>();
+            while (Peek().Id == _lexer.Name)
+                nodes.Add(ParseASTNode());
 
-            private int _i;
-            private List<Token> _tokens;
-            
-            private RegexLexer _resultLexer;
-            private SymbolDictionary _resultSD;
-            private PrototypeDictionary _pd;
 
-            private List<(string nt, List<(string name, SymbolType type)> seq, RuleCallback cb)> _rules =
-                new List<(string, List<(string name, SymbolType type)>, RuleCallback)>();
-            
-            public GrammarParser(RegexLexer resultLexer, PrototypeDictionary pd)
+            var types = nodes
+                .ToDictionary(
+                    n => n.Name,
+                    n => pd.MakeNode(n.Name, pd.GetByName(n.Parent) as NodePrototype, n.Fields.Count)
+                );
+
+            foreach (var node in nodes)
+            foreach (var (name, typeName) in node.Fields)
+                types[node.Name].RegisterField(name, pd.GetOrMakeByName(typeName));
+
+            return pd;
+        }
+
+        private UnCompiledASTNode ParseASTNode()
+        {
+            var (name, parent) = ParseHeader();
+
+            Consume(_lexer.LeftBrace);
+
+            var fields = new List<(string name, string typeName)>();
+            while (Peek().Id != _lexer.RightBrace)
+                fields.Add(ParseField());
+
+            Consume(_lexer.RightBrace);
+
+            return new UnCompiledASTNode(name, parent, fields);
+        }
+
+        private (string name, string parentName) ParseHeader()
+        {
+            var name = Consume(_lexer.Name).Text;
+
+            if (Peek().Id != _lexer.Colon)
+                return (name, "Object");
+
+            Consume(_lexer.Colon);
+            var parentName = Consume(_lexer.Name).Text;
+            return (name, parentName);
+        }
+
+        private (string name, string type) ParseField()
+        {
+            var name = Consume(_lexer.Name).Text;
+            Consume(_lexer.Colon);
+            var type = ParseTypeToString();
+            Consume(_lexer.Semicolon);
+            return (name, type);
+        }
+
+        private string ParseTypeToString()
+        {
+            var stars = 0;
+            while (Peek().Id == _lexer.Star)
             {
-                _resultLexer = resultLexer;
-                _resultSD = resultLexer.SymbolDictionary();
-                _pd = pd;
-                _idOpenCurly = _lexer["OpenCurly"];
-                _idCloseCurly = _lexer["CloseCurly"];
-                _idDot = _lexer["Dot"];
-                _idComa = _lexer["Coma"];
-                _idStar = _lexer["Star"];
-                _idOpenAngle = _lexer["OpenAngle"];
-                _idCloseAngle = _lexer["CloseAngle"];
-                _idOpenPar = _lexer["OpenPar"];
-                _idClosePar = _lexer["ClosePar"];
-                _idArrowRight = _lexer["ArrowRight"];
-                _idArrowLeft = _lexer["ArrowLeft"];
-                _idDollarVar = _lexer["DollarVar"];
-                _idColon = _lexer["Colon"];
-                _idVBar = _lexer["VBar"];
-                _idReturn = _lexer["Return"];
-                _idName = _lexer["Name"];
-                _idEND = _lexer["END"];
-            }
-            
-            
-            private void AssertType(Token token, int type, string expected)
-            {
-                if (token.Id != type)
-                    throw new Exception($"Expected {expected}, but got {token.Text}, on line {token.Line}");
+                stars += 1;
+                Consume(_lexer.Star);
             }
 
-            public IParser Parse(string code)
+            var mainType = Consume(_lexer.Name).Text;
+            return new string('*', stars) + mainType;
+        }
+
+        /* ===== GRAMMAR ===== */
+
+        private Rules ParseGrammar(SymbolDictionary sd, PrototypeDictionary pd)
+        {
+            Consume(_lexer.HashGrammar);
+
+            var rules = new List<Rule>();
+            while (Peek().Id == _lexer.LeftAngle)
+                rules.AddRange(ParseRule(sd, pd));
+
+            return new Rules(rules);
+        }
+
+        private List<Rule> ParseRule(SymbolDictionary sd, PrototypeDictionary pd)
+        {
+            var rules = new List<Rule>();
+
+            var left = ParseNonTerminal(sd);
+            Consume(_lexer.ArrowRight);
+            rules.Add(new Rule(left, ParseSequence(sd), ParseCallback(pd)));
+            while (Peek().Id == _lexer.Bar)
             {
-                _tokens = _lexer.ParseLexemes(code).ToList();
-                ParseGrammar();
-                foreach (var (nt, _, _) in _rules)
-                    if (!_resultSD.ContainsKey(nt, SymbolType.NonTerminal))
-                        _resultSD.RegisterNonTerminal(nt);
-                
-                return new Ll1Parser(new Rules(_rules
-                    .Select(nsc => new Rule(
-                        _resultSD[nsc.nt, SymbolType.NonTerminal],
-                        nsc.seq.Select(s => _resultSD[s.name, s.type]).ToList(),
-                        nsc.cb)).ToList()), _resultSD);
+                Consume(_lexer.Bar);
+                rules.Add(new Rule(left, ParseSequence(sd), ParseCallback(pd)));
             }
 
-            private Token Consume(int type)
-            {
-                AssertLength(_tokens, _i);
-                AssertType(_tokens[_i], type, _lexer[type]);
-                _i++;
-                return _tokens[_i - 1];
-            }
+            return rules;
+        }
 
-            private Token Peek()
-            {
-                AssertLength(_tokens, _i);
-                return _tokens[_i];
-            }
+        private List<int> ParseSequence(SymbolDictionary sd)
+        {
+            var result = new List<int>();
+            while (Peek().Id != _lexer.LeftBrace)
+                result.Add(ParseSymbol(sd));
+            return result;
+        }
 
-            private void ParseGrammar()
-            {
-                while(_i < _tokens.Count && _tokens[_i].Id != _idEND)
-                    ParseRule();
-            }
+        private int ParseSymbol(SymbolDictionary sd)
+            => Peek().Id == _lexer.LeftAngle
+                ? ParseNonTerminal(sd)
+                : sd[Consume(_lexer.Name).Text, SymbolType.Terminal];
 
-            private void ParseRule()
+        private int ParseNonTerminal(SymbolDictionary sd)
+        {
+            Consume(_lexer.LeftAngle);
+            var ntName = Consume(_lexer.Name).Text;
+            Consume(_lexer.RightAngle);
+            return sd.GetOrRegister(ntName, SymbolType.NonTerminal);
+        }
+
+        private RuleCallback ParseCallback(PrototypeDictionary pd)
+        {
+            Consume(_lexer.LeftBrace);
+            var instructions = new List<RuleCallback.Instruction>();
+            while (Peek().Id != _lexer.RightBrace)
             {
-                var left = ParseNonTerminal();
-                Consume(_idArrowRight);
-                _rules.Add((left, ParseSequence(), ParseCallback()));
-                while (Peek().Id == _idVBar)
+                if (Peek().Id == _lexer.Return)
                 {
-                    Consume(_idVBar);
-                    _rules.Add((left, ParseSequence(), ParseCallback()));
+                    Consume(_lexer.Return);
+                    instructions.Add(new RuleCallback.Return(ParseExpression(pd)));
                 }
-            }
-
-            private List<(string name, SymbolType type)> ParseSequence()
-            {
-                var result = new List<(string name, SymbolType type)>();
-                while(Peek().Id != _idOpenCurly)
-                    result.Add(ParseSymbol());
-                return result;
-            }
-
-            private (string name, SymbolType type) ParseSymbol()
-                => Peek().Id == _idOpenAngle
-                    ? (ParseNonTerminal(), SymbolType.NonTerminal)
-                    : (Consume(_idName).Text, SymbolType.Terminal);
-
-            private RuleCallback ParseCallback()
-            {
-                Consume(_idOpenCurly);
-                var instr = new List<RuleCallback.Instruction>();
-                while (Peek().Id != _idCloseCurly)
+                else
                 {
-                    if (Peek().Id == _idReturn)
-                    {
-                        Consume(_idReturn);
-                        instr.Add(new RuleCallback.Return(ParseExpr()));
-                    }
-                    else
-                    {
-                        var left = ParseGetter();
-                        Consume(_idArrowLeft);
-                        var right = ParseExpr();
-                        instr.Add(new RuleCallback.Add(left, right));
-                    }
-
-                    Consume(_idColon);
-                }
-                Consume(_idCloseCurly);
-                return new RuleCallback(instr);;
-            }
-
-            private RuleCallback.Expr ParseExpr()
-                => Peek().Id == _idDollarVar
-                    ? (RuleCallback.Expr) ParseGetter()
-                    : ParseConstruction();
-            
-            private RuleCallback.Getter ParseGetter()
-            {
-                var variable = int.Parse(Consume(_idDollarVar).Text[1..]);
-                var gets = new List<string>();
-                while (Peek().Id == _idDot)
-                {
-                    Consume(_idDot);
-                    gets.Add(Consume(_idName).Text);
-                }
-                return new RuleCallback.Getter(variable, gets);
-            }
-
-            private RuleCallback.Construction ParseConstruction()
-            {
-                var type = ParseType();
-                Consume(_idOpenPar);
-                var exprList = new List<RuleCallback.Expr> ();
-                if (Peek().Id == _idClosePar)
-                {
-                    Consume(_idClosePar);
-                    return new RuleCallback.Construction(type, exprList);
+                    var left = ParseGetter();
+                    Consume(_lexer.ArrowLeft);
+                    var right = ParseExpression(pd);
+                    instructions.Add(new RuleCallback.Add(left, right));
                 }
 
-                exprList.Add(ParseExpr());
-                while (Peek().Id != _idClosePar)
-                {
-                    Consume(_idComa);
-                    exprList.Add(ParseExpr());
-                }
+                Consume(_lexer.Semicolon);
+            }
 
-                Consume(_idClosePar);
+            Consume(_lexer.RightBrace);
+            return new RuleCallback(instructions);
+        }
+
+        private RuleCallback.Expr ParseExpression(PrototypeDictionary pd)
+            => Peek().Id == _lexer.DollarVar
+                ? (RuleCallback.Expr) ParseGetter()
+                : ParseConstruction(pd);
+
+        private RuleCallback.Getter ParseGetter()
+        {
+            var variable = int.Parse(Consume(_lexer.DollarVar).Text[1..]);
+            var gets = new List<string>();
+            while (Peek().Id == _lexer.Dot)
+            {
+                Consume(_lexer.Dot);
+                gets.Add(Consume(_lexer.Name).Text);
+            }
+
+            return new RuleCallback.Getter(variable, gets);
+        }
+
+        private RuleCallback.Construction ParseConstruction(PrototypeDictionary pd)
+        {
+            var type = ParseType(pd);
+            Consume(_lexer.LeftPar);
+            var exprList = new List<RuleCallback.Expr>();
+            if (Peek().Id == _lexer.RightPar)
+            {
+                Consume(_lexer.RightPar);
                 return new RuleCallback.Construction(type, exprList);
             }
 
-            private IPrototype ParseType()
+            exprList.Add(ParseExpression(pd));
+            while (Peek().Id != _lexer.RightPar)
             {
-                var typeName = "";
-                while (Peek().Id == _idStar)
-                    typeName = $"{typeName}{Consume(_idStar).Text}";
-                typeName = $"{typeName}{Consume(_idName).Text}";
-                return typeName[0] == '*' 
-                    ? _pd.GetOrMakeList(typeName)
-                    : _pd.GetByName(typeName);
+                Consume(_lexer.Coma);
+                exprList.Add(ParseExpression(pd));
             }
 
-            private string ParseNonTerminal()
-            {
-                Consume(_idOpenAngle);
-                var ntName = Consume(_idName).Text;
-                Consume(_idCloseAngle);
-                return ntName;
-            }
+            Consume(_lexer.RightPar);
+            return new RuleCallback.Construction(type, exprList);
         }
 
-        public static IParser ParseGrammar(string code, RegexLexer lexer, PrototypeDictionary pd)
-            => new GrammarParser(lexer, pd).Parse(code);
+        private IPrototype ParseType(PrototypeDictionary pd)
+        {
+            var stars = "";
+            while (Peek().Id == _lexer.Star)
+                stars += Consume(_lexer.Star).Text;
+            var mainType = Consume(_lexer.Name).Text;
+            return stars.Length > 0 ? pd.GetOrMakeList(stars + mainType) : pd.GetByName(mainType);
+        }
+
+        private Token Consume(params int[] type)
+        {
+            if (!CanPeek())
+                throw new Exception($"Expected any of {{{TokensNames(type)}}}, got EOF");
+            var peek = Peek();
+            if (!type.Contains(peek.Id))
+                throw new Exception(
+                    $"Expected any of {{{TokensNames(type)}}}, got {TokenName(peek.Id)} on line {peek.Line}");
+            _position++;
+            return peek;
+        }
+    }
+
+    public class ParsersLexer
+    {
+        public IEnumerable<Token> ParseAll(string code)
+            => _lexer.ParseLexemes(code);
+
+
+        public SymbolDictionary SymbolDictionary;
+
+        private RegexLexer _lexer = new RegexLexer(
+            new List<Lexeme>
+            {
+                new Lexeme("Space", "\\s", true),
+                new Lexeme("Comment", "/\\*.*\\*/", true),
+                new Lexeme("HashLex", "#Lex"),
+                new Lexeme("HashAST", "#AST"),
+                new Lexeme("HashGrammar", "#Grammar"),
+                new Lexeme("Dot", "\\."),
+                new Lexeme("DollarVar", "\\$[0-9]+"),
+                new Lexeme("Eq", "="),
+                new Lexeme("Star", "\\*"),
+                new Lexeme("LeftBrace", "\\{"),
+                new Lexeme("RightBrace", "\\}"),
+                new Lexeme("LeftPar", "\\("),
+                new Lexeme("RightPar", "\\)"),
+                new Lexeme("Semicolon", ";"),
+                new Lexeme("Colon", ":"),
+                new Lexeme("Coma", ","),
+                new Lexeme("ArrowRight", "->"),
+                new Lexeme("ArrowLeft", "<-"),
+                new Lexeme("LeftAngle", "<"),
+                new Lexeme("RightAngle", ">"),
+                new Lexeme("Bar", "\\|"),
+                new Lexeme("Return", "\\breturn\\b"),
+                new Lexeme("Name", "[a-zA-Z_][a-zA-Z_0-9]*"),
+                new Lexeme("Regex", "\"([^\\\"]|\\.)*\""),
+            },
+            new SymbolDictionary()
+        );
+
+        public int HashLex,
+            HashAST,
+            HashGrammar,
+            Dot,
+            DollarVar,
+            Eq,
+            Star,
+            LeftBrace,
+            RightBrace,
+            LeftPar,
+            RightPar,
+            Semicolon,
+            Colon,
+            Coma,
+            ArrowRight,
+            ArrowLeft,
+            LeftAngle,
+            RightAngle,
+            Bar,
+            Return,
+            Name,
+            Regex,
+            END;
+
+        public ParsersLexer()
+        {
+            foreach (var field in typeof(ParsersLexer).GetFields())
+            {
+                if (field.FieldType != typeof(int))
+                    continue;
+                field.SetValue(this, _lexer[field.Name]);
+            }
+
+            END = _lexer["END"];
+
+            SymbolDictionary = _lexer.SymbolDictionary();
+        }
     }
 }

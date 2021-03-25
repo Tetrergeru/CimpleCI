@@ -50,7 +50,6 @@ namespace Frontend.Parser.Ll1Parser
             var output = new List<IASTNode>();
             var consumer = _consumers[type];
             return UseConsumer(consumer, output);
-            ;
         }
 
         private IASTNode UseConsumer(IConsumer consumer, List<IASTNode> output)
@@ -79,7 +78,7 @@ namespace Frontend.Parser.Ll1Parser
                                                    .Join(", ",
                                                        sc.Start()
                                                            .Select(k => _symbolDictionary[k].name))
-                                           }, got {peek.Text}");
+                                           }, got {_symbolDictionary[peek.Id].name}({peek.Text}), on line {peek.Line}");
                         continue;
                     }
                     default:
@@ -111,6 +110,7 @@ namespace Frontend.Parser.Ll1Parser
                         {
                             SymbolType.Terminal => () => ConsumeToken(symbol),
                             SymbolType.NonTerminal => () => ConsumeNonTerminal(symbol),
+                            _ => throw new Exception($"Unexpected symbol type {_symbolDictionary[ruleGroup.Key].symbolType}")
                         },
                         nextConsumer
                     )

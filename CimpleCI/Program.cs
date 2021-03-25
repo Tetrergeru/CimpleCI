@@ -1,12 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.IO;
-using System.Linq;
-using System.Windows.Markup;
 using Backend;
 using Frontend;
-using Frontend.Lexer;
 
 namespace CimpleCI
 {
@@ -22,14 +17,17 @@ namespace CimpleCI
 
         static void Main()
         {
-            var code = File.ReadAllText("CodeSamples/program_2.c1");//"2 + (2 + 2)";//
+            //var pl = new ParsersLexer();
+            
+            var code = File.ReadAllText("CodeSamples/tcp_server.c");//"2 + (2 + 2)";//
 
             //RegexLexer.DEBUG = true;
             var frontend = new FrontendPipeline(File.ReadAllText("Grammars/Cimple1.gr"));//new FrontendPipeline(File.ReadAllText("Grammars/grammar_0.gr")); //
+            Console.WriteLine("Grammar parsed");
             
-            frontend.Print(frontend.Parse(code));
+            //frontend.Print(frontend.Parse(code));
             var backend = new ModulePrinter();
-            //Console.WriteLine(backend.VisitModule(Cimple0Translator.Parse(frontend.Parse(code))));
+            Console.WriteLine(backend.VisitModule(Cimple0Translator.Parse(frontend.Parse(code))));
         }
     }
 }

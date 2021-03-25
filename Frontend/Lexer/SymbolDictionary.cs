@@ -10,6 +10,9 @@ namespace Frontend.Lexer
 
         private readonly List<(string, SymbolType)> _nameById = new List<(string, SymbolType)>();
 
+        public int GetOrRegister(string name, SymbolType type) =>
+            _idByName.ContainsKey((name, type)) ? _idByName[(name, type)] : Register(name, type);
+
         public int Register(string name, SymbolType type)
         {
             if (_idByName.ContainsKey((name, type)))
