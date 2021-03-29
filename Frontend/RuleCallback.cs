@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Frontend.AST;
+using Frontend.Parser;
 
 namespace Frontend
 {
-    public class RuleCallback
+    public class RuleCallback : Callable<IASTNode>
     {
         public abstract class Instruction
         {
@@ -21,7 +22,7 @@ namespace Frontend
                 _value = value;
             }
 
-            public IASTNode Eval(List<IASTNode> args)
+            public IASTNode Eval(IReadOnlyList<IASTNode> args)
                 => _value.Eval(args);
 
             public override string ToString()
@@ -39,7 +40,7 @@ namespace Frontend
                 _value = value;
             }
             
-            public void Eval(List<IASTNode> args)
+            public void Eval(IReadOnlyList<IASTNode> args)
                 => ((ASTList)_list.Eval(args)).Insert(_value.Eval(args));
 
             public override string ToString()
@@ -49,7 +50,7 @@ namespace Frontend
 
         public abstract class Expr
         {
-            public abstract IASTNode Eval(List<IASTNode> args);
+            public abstract IASTNode Eval(IReadOnlyList<IASTNode> args);
         }
 
         public class Getter : Expr
@@ -63,7 +64,7 @@ namespace Frontend
                 _fields = fields;
             }
 
-            public override IASTNode Eval(List<IASTNode> args)
+            public override IASTNode Eval(IReadOnlyList<IASTNode> args)
                 => _fields.Aggregate(args[_arg], (current, field) => current[field]);
 
             public override string ToString()
@@ -82,7 +83,7 @@ namespace Frontend
                 _args = args;
             }
 
-            public override IASTNode Eval(List<IASTNode> args)
+            public override IASTNode Eval(IReadOnlyList<IASTNode> args)
                 =>_type.New(_args.Select(e => e.Eval(args)).ToArray());
 
             public override string ToString()
@@ -96,16 +97,16 @@ namespace Frontend
             this._program = program;
         }
 
-        public IASTNode Call(List<IASTNode> list)
+        public IASTNode Call(IReadOnlyList<IASTNode> args)
         {
             foreach (var instruction in _program)
             {
                 switch (instruction)
                 {
                     case Return ret:
-                        return ret.Eval(list);
+                        return ret.Eval(args);
                     case Add add:
-                        add.Eval(list);
+                        add.Eval(args);
                         break;
                 }
             }

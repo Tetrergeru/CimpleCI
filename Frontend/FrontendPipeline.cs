@@ -16,10 +16,10 @@ namespace Frontend
 
         public FrontendPipeline(string grammar)
         {
-            Rules rules;
+            Rules<IASTNode> rules;
             (_lexer, _prototypeDictionary, rules) = new ParsersParser().ParseParser(grammar);
             _symbolDictionary = _lexer.SymbolDictionary();
-            _parser = new Ll1Parser(rules, _symbolDictionary);
+            _parser = new Ll1Parser<IASTNode>(rules, _symbolDictionary);
         }
 
         public IASTNode Parse(string code)

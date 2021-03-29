@@ -4,7 +4,6 @@ using System.Linq;
 using Frontend.AST;
 using Frontend.Lexer;
 using Frontend.Parser;
-using Frontend.Parser.Ll1Parser;
 
 namespace Frontend
 {
@@ -16,17 +15,7 @@ namespace Frontend
 
         private int _position;
 
-        private bool CanPeek() => _position < _code.Count;
-
-        private Token Peek() => _code[_position];
-
-        private string TokenName(int id)
-            => _lexer.SymbolDictionary[id].name;
-
-        private string TokensNames(IEnumerable<int> tokens)
-            => string.Join(", ", tokens.Select(TokenName));
-
-        public (RegexLexer, PrototypeDictionary, Rules) ParseParser(string code)
+        public (RegexLexer, PrototypeDictionary, Rules<IASTNode>) ParseParser(string code)
         {
             _code = _lexer.ParseAll(code).ToList();
             var parsedLexer = ParseLexer();
@@ -72,13 +61,13 @@ namespace Frontend
 
         /* ===== AST ===== */
 
-        struct UnCompiledASTNode
+        private struct UnCompiledAstNode
         {
-            public string Name;
-            public string Parent;
-            public List<(string name, string typeName)> Fields;
+            public readonly string Name;
+            public readonly string Parent;
+            public readonly List<(string name, string typeName)> Fields;
 
-            public UnCompiledASTNode(string name, string parent, List<(string, string)> fields)
+            public UnCompiledAstNode(string name, string parent, List<(string, string)> fields)
             {
                 Name = name;
                 Parent = parent;
@@ -91,7 +80,7 @@ namespace Frontend
             Consume(_lexer.HashAST);
             var pd = new PrototypeDictionary();
 
-            var nodes = new List<UnCompiledASTNode>();
+            var nodes = new List<UnCompiledAstNode>();
             while (Peek().Id == _lexer.Name)
                 nodes.Add(ParseASTNode());
 
@@ -109,7 +98,7 @@ namespace Frontend
             return pd;
         }
 
-        private UnCompiledASTNode ParseASTNode()
+        private UnCompiledAstNode ParseASTNode()
         {
             var (name, parent) = ParseHeader();
 
@@ -121,7 +110,7 @@ namespace Frontend
 
             Consume(_lexer.RightBrace);
 
-            return new UnCompiledASTNode(name, parent, fields);
+            return new UnCompiledAstNode(name, parent, fields);
         }
 
         private (string name, string parentName) ParseHeader()
@@ -160,28 +149,28 @@ namespace Frontend
 
         /* ===== GRAMMAR ===== */
 
-        private Rules ParseGrammar(SymbolDictionary sd, PrototypeDictionary pd)
+        private Rules<IASTNode> ParseGrammar(SymbolDictionary sd, PrototypeDictionary pd)
         {
             Consume(_lexer.HashGrammar);
 
-            var rules = new List<Rule>();
+            var rules = new List<Rule<IASTNode>>();
             while (Peek().Id == _lexer.LeftAngle)
                 rules.AddRange(ParseRule(sd, pd));
 
-            return new Rules(rules);
+            return new Rules<IASTNode>(rules);
         }
 
-        private List<Rule> ParseRule(SymbolDictionary sd, PrototypeDictionary pd)
+        private List<Rule<IASTNode>> ParseRule(SymbolDictionary sd, PrototypeDictionary pd)
         {
-            var rules = new List<Rule>();
+            var rules = new List<Rule<IASTNode>>();
 
             var left = ParseNonTerminal(sd);
             Consume(_lexer.ArrowRight);
-            rules.Add(new Rule(left, ParseSequence(sd), ParseCallback(pd)));
+            rules.Add(new Rule<IASTNode>(left, ParseSequence(sd), ParseCallback(pd)));
             while (Peek().Id == _lexer.Bar)
             {
                 Consume(_lexer.Bar);
-                rules.Add(new Rule(left, ParseSequence(sd), ParseCallback(pd)));
+                rules.Add(new Rule<IASTNode>(left, ParseSequence(sd), ParseCallback(pd)));
             }
 
             return rules;
@@ -294,6 +283,16 @@ namespace Frontend
             _position++;
             return peek;
         }
+
+        private bool CanPeek() => _position < _code.Count;
+
+        private Token Peek() => _code[_position];
+
+        private string TokenName(int id)
+            => _lexer.SymbolDictionary[id].name;
+
+        private string TokensNames(IEnumerable<int> tokens)
+            => string.Join(", ", tokens.Select(TokenName));
     }
 
     public class ParsersLexer
@@ -302,9 +301,9 @@ namespace Frontend
             => _lexer.ParseLexemes(code);
 
 
-        public SymbolDictionary SymbolDictionary;
+        public readonly SymbolDictionary SymbolDictionary;
 
-        private RegexLexer _lexer = new RegexLexer(
+        private readonly RegexLexer _lexer = new RegexLexer(
             new List<Lexeme>
             {
                 new Lexeme("Space", "\\s", true),

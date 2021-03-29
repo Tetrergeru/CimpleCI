@@ -5,15 +5,15 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser
 {
-    public class RecursiveParser : IParser
+    public class RecursiveParser<T> : IParser
     {
-        private readonly Rules _rules;
+        private readonly Rules<T> _rules;
 
         private readonly SymbolDictionary _symbolDictionary;
 
         private List<Token> _code;
         
-        public RecursiveParser(Rules rules, SymbolDictionary symbolDictionary)
+        public RecursiveParser(Rules<T> rules, SymbolDictionary symbolDictionary)
         {
             _symbolDictionary = symbolDictionary;
             _rules = rules;

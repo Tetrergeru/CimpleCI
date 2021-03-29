@@ -4,7 +4,7 @@ using Middleend.Types;
 
 namespace Middleend
 {
-    public interface IModuleVisitor<T>
+    public interface IModuleVisitor<out T>
     {
         T VisitModule(Module module);
 

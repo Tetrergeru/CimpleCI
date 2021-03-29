@@ -3,13 +3,13 @@ using System.Linq;
 
 namespace Frontend.Parser
 {
-    public class Rules
+    public class Rules<T>
     {
-        public List<Rule> RuleList;
+        public List<Rule<T>> RuleList;
 
         private Dictionary<int, List<int>> RuleGroups = new Dictionary<int, List<int>>();
         
-        public Rules(List<Rule> ruleList)
+        public Rules(List<Rule<T>> ruleList)
         {
             RuleList = ruleList;
             for (var i = 0; i < RuleList.Count; i++)
@@ -21,12 +21,12 @@ namespace Frontend.Parser
             }
         }
 
-        public Rule this[int index] => RuleList[index];
+        public Rule<T> this[int index] => RuleList[index];
 
         public List<int> RuleGroup(int nonTerminal) 
             => RuleGroups[nonTerminal];
         
-        public List<Rule> FullRuleGroup(int nonTerminal) 
+        public List<Rule<T>> FullRuleGroup(int nonTerminal) 
             => RuleGroups[nonTerminal].Select(id => RuleList[id]).ToList();
     }
 }

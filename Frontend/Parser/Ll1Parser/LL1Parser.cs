@@ -6,7 +6,7 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser.Ll1Parser
 {
-    public class Ll1Parser : IParser
+    public class Ll1Parser<T> : IParser
     {
         public IASTNode Parse(List<Token> code)
         {
@@ -22,13 +22,13 @@ namespace Frontend.Parser.Ll1Parser
 
         private Token Peek() => _code[_position];
 
-        private readonly Rules _rules;
+        private readonly Rules<T> _rules;
 
         private readonly Dictionary<int, HashSet<int>> _first;
 
         private readonly Dictionary<int, IConsumer> _consumers;
 
-        public Ll1Parser(Rules rules, SymbolDictionary symbolDictionary)
+        public Ll1Parser(Rules<T> rules, SymbolDictionary symbolDictionary)
         {
             _symbolDictionary = symbolDictionary;
             _rules = rules;

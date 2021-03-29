@@ -4,7 +4,7 @@ using Frontend.AST;
 
 namespace Frontend.Parser
 {
-    public struct Rule
+    public struct Rule<T>
     {
         public readonly int NonTerminal;
         
