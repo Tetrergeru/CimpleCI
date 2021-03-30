@@ -6,9 +6,9 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser.Ll1Parser
 {
-    public class Ll1Parser<T> : IParser
+    public class Ll1Parser<T> : IParser<T>
     {
-        public IASTNode Parse(List<Token> code)
+        public T Parse(List<Token> code)
         {
             _code = code;
             return ConsumeNonTerminal(_rules[0].NonTerminal);
@@ -26,47 +26,50 @@ namespace Frontend.Parser.Ll1Parser
 
         private readonly Dictionary<int, HashSet<int>> _first;
 
-        private readonly Dictionary<int, IConsumer> _consumers;
+        private readonly Dictionary<int, IConsumer<T>> _consumers;
 
-        public Ll1Parser(Rules<T> rules, SymbolDictionary symbolDictionary)
+        private readonly Func<Token, int, T> _factory;
+        
+        public Ll1Parser(Rules<T> rules, SymbolDictionary symbolDictionary, Func<Token, int, T> factory)
         {
             _symbolDictionary = symbolDictionary;
+            this._factory = factory;
             _rules = rules;
             _first = CalculateFirst();
             _consumers = _symbolDictionary.GetAll(SymbolType.NonTerminal)
                 .ToDictionary(x => x, MakeConsumer);
         }
 
-        private IASTNode ConsumeToken(int type)
+        private T ConsumeToken(int type)
         {
             if (Peek().Id != type)
-                throw new Exception($"Expected {_symbolDictionary[type].name}, got {Peek().Text}");
+                throw new Exception($"Expected {_symbolDictionary[type].name}, got {Peek().Text} on line {Peek().Line}");
 
-            return new ASTLeaf(_code[_position++], type);
+            return _factory(_code[_position++], type);
         }
 
-        private IASTNode ConsumeNonTerminal(int type)
+        private T ConsumeNonTerminal(int type)
         {
-            var output = new List<IASTNode>();
+            var output = new List<T>();
             var consumer = _consumers[type];
             return UseConsumer(consumer, output);
         }
 
-        private IASTNode UseConsumer(IConsumer consumer, List<IASTNode> output)
+        private T UseConsumer(IConsumer<T> consumer, List<T> output)
         {
             while (true)
             {
                 switch (consumer)
                 {
-                    case FinalConsumer fc:
+                    case FinalConsumer<T> fc:
                         return _rules[fc.Rule].Callback.Call(output);
-                    case SymbolConsumer syc:
+                    case SymbolConsumer<T> syc:
                     {
                         output.Add(syc.Action());
                         consumer = syc.Consumer;
                         continue;
                     }
-                    case SwitchConsumer sc:
+                    case SwitchConsumer<T> sc:
                     {
                         var peek = Peek();
                         var c = sc.Go(peek.Id);
@@ -82,18 +85,18 @@ namespace Frontend.Parser.Ll1Parser
                         continue;
                     }
                     default:
-                        return null;
+                        throw new Exception("Unknown consumer");
                 }
             }
         }
 
-        private IConsumer MakeConsumer(int nonTerminal)
+        private IConsumer<T> MakeConsumer(int nonTerminal)
             => MakeConsumer(_rules.RuleGroup(nonTerminal), 0);
 
-        private IConsumer MakeConsumer(IReadOnlyList<int> rules, int position)
+        private IConsumer<T> MakeConsumer(IReadOnlyList<int> rules, int position)
         {
             var nt = _rules[rules[0]].NonTerminal;
-            var list = new List<IConsumer>();
+            var list = new List<IConsumer<T>>();
 
             var longRules = rules.Where(r => _rules[r].Sequence.Count > position);
             foreach (var ruleGroup in longRules.GroupBy(r => _rules[r].Sequence[position]))
@@ -104,7 +107,7 @@ namespace Frontend.Parser.Ll1Parser
 
                 var symbol = ruleGroup.Key;
                 var nextConsumer = MakeConsumer(ruleGroup.ToList(), position + 1);
-                list.Add(new SymbolConsumer(
+                list.Add(new SymbolConsumer<T>(
                         _first[symbol],
                         _symbolDictionary[ruleGroup.Key].symbolType switch
                         {
@@ -122,12 +125,12 @@ namespace Frontend.Parser.Ll1Parser
                 throw new Exception(
                     $"Ambiguity: cannot decide which rule finishes for non terminal <{_symbolDictionary[nt].name}>");
             if (finishedRules.Count > 0)
-                list.Add(new FinalConsumer(finishedRules[0]));
+                list.Add(new FinalConsumer<T>(finishedRules[0]));
 
             if (list.Count == 0)
                 throw new Exception(
                     $"Don't know what to parse for non terminal <{_symbolDictionary[nt].name}>, position = {position}");
-            return list.Count == 1 ? list[0] : new SwitchConsumer(list);
+            return list.Count == 1 ? list[0] : new SwitchConsumer<T>(list);
         }
 
         private Dictionary<int, HashSet<int>> CalculateFirst()

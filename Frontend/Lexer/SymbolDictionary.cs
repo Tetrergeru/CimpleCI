@@ -16,7 +16,7 @@ namespace Frontend.Lexer
         public int Register(string name, SymbolType type)
         {
             if (_idByName.ContainsKey((name, type)))
-                throw new Exception("Name already taken");
+                throw new Exception($"Name {name} already taken");
             _nameById.Add((name, type));
             _idByName[(name, type)] = _nameById.Count - 1;
             return _nameById.Count - 1;

@@ -8,11 +8,11 @@ namespace Frontend.Parser
     {
         public readonly int NonTerminal;
         
-        public readonly List<int> Sequence;
+        public readonly IReadOnlyList<int> Sequence;
 
-        public readonly RuleCallback Callback;
+        public readonly Callable<T> Callback;
         
-        public Rule(int nonTerminal, List<int> sequence, RuleCallback callback)
+        public Rule(int nonTerminal, IReadOnlyList<int> sequence, Callable<T> callback)
         {
             Sequence = sequence;
             Callback = callback;

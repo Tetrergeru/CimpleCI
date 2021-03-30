@@ -28,6 +28,7 @@ namespace CimpleCI
             //frontend.Print(frontend.Parse(code));
             var backend = new ModulePrinter();
             Console.WriteLine(backend.VisitModule(Cimple0Translator.Parse(frontend.Parse(code))));
+            Console.WriteLine("File parsed");
         }
     }
 }

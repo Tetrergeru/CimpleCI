@@ -6,8 +6,8 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser
 {
-    public interface IParser
+    public interface IParser<out T>
     {
-        IASTNode Parse(List<Token> code);
+        T Parse(List<Token> code);
     }
 }

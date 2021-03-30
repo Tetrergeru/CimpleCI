@@ -6,7 +6,7 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser.Ll1Parser
 {
-    internal interface IConsumer
+    internal interface IConsumer<T>
     {
         bool CanConsume(int peek);
 
@@ -15,7 +15,7 @@ namespace Frontend.Parser.Ll1Parser
         string ToString(SymbolDictionary sd, int offset);
     }
 
-    internal class FinalConsumer : IConsumer
+    internal class FinalConsumer<T> : IConsumer<T> 
     {
         public int Rule;
 
@@ -34,13 +34,13 @@ namespace Frontend.Parser.Ll1Parser
             => new string(' ', offset) + $"Final({Rule})";
     }
 
-    internal class SymbolConsumer : IConsumer
+    internal class SymbolConsumer<T>  : IConsumer<T> 
     {
         private readonly HashSet<int> _prefixes;
-        public readonly Func<IASTNode> Action;
-        public readonly IConsumer Consumer;
+        public readonly Func<T> Action;
+        public readonly IConsumer<T>  Consumer;
 
-        public SymbolConsumer(HashSet<int> prefixes, Func<IASTNode> action, IConsumer consumer)
+        public SymbolConsumer(HashSet<int> prefixes, Func<T> action, IConsumer<T>  consumer)
         {
             _prefixes = prefixes;
             Action = action;
@@ -58,15 +58,15 @@ namespace Frontend.Parser.Ll1Parser
                $"Symbol({string.Join(", ", _prefixes.Select(i => sd[i].name))}) ->\n{Consumer.ToString(sd, offset + 3)}";
     }
 
-    class SwitchConsumer : IConsumer
+    class SwitchConsumer<T>  : IConsumer<T> 
     {
-        private readonly List<IConsumer> _switch;
+        private readonly List<IConsumer<T> > _switch;
 
-        public IConsumer Go(int token)
+        public IConsumer<T>  Go(int token)
             => _switch.FirstOrDefault(c => c.CanConsume(token));
 
 
-        public SwitchConsumer(List<IConsumer> @switch)
+        public SwitchConsumer(List<IConsumer<T> > @switch)
         {
             _switch = @switch;
         }

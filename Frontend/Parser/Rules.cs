@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using Frontend.Lexer;
 
 namespace Frontend.Parser
 {
@@ -28,5 +30,16 @@ namespace Frontend.Parser
         
         public List<Rule<T>> FullRuleGroup(int nonTerminal) 
             => RuleGroups[nonTerminal].Select(id => RuleList[id]).ToList();
+
+        public void Print(SymbolDictionary sd)
+        {
+            foreach (var rule in RuleList)
+            {
+                Console.Write(sd[rule.NonTerminal].name);
+                Console.Write(" -> ");
+                Console.Write(string.Join(" ", rule.Sequence.Select(s => sd[s].name)));
+                Console.WriteLine($" {{ {rule.Callback} }}");
+            }
+        }
     }
 }

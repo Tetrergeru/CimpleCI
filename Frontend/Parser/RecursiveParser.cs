@@ -5,7 +5,7 @@ using Frontend.Lexer;
 
 namespace Frontend.Parser
 {
-    public class RecursiveParser<T> : IParser
+    public class RecursiveParser<T> : IParser<T> where T : class
     {
         private readonly Rules<T> _rules;
 
@@ -13,15 +13,18 @@ namespace Frontend.Parser
 
         private List<Token> _code;
         
-        public RecursiveParser(Rules<T> rules, SymbolDictionary symbolDictionary)
+        private readonly Func<Token, int, T> _factory;
+        
+        public RecursiveParser(Rules<T> rules, SymbolDictionary symbolDictionary, Func<Token, int, T> factory)
         {
             _symbolDictionary = symbolDictionary;
+            _factory = factory;
             _rules = rules;
         }
 
-        private IASTNode Parse(int position, int rule, out int newPosition)
+        private T Parse(int position, int rule, out int newPosition)
         {
-            var list = new List<IASTNode>();
+            var list = new List<T>();
             foreach (var token in _rules.RuleList[rule].Sequence)
             {
                 if (_symbolDictionary.TypeById(token) == SymbolType.Terminal)
@@ -30,7 +33,7 @@ namespace Frontend.Parser
                     {
                         // =============== TODO: Fix id ===============
                         
-                        list.Add(new ASTLeaf(_code[position], 1));
+                        list.Add(_factory(_code[position], 1));
                         position++;
                         continue;
                     }
@@ -49,6 +52,7 @@ namespace Frontend.Parser
                     success = true;
                     list.Add(parsed);
                     position = newPos;
+                    
                     break;
                 }
 
@@ -62,20 +66,11 @@ namespace Frontend.Parser
             newPosition = position;
             var result = _rules[rule].Callback.Call(list);
 
-            if (RegexLexer.DEBUG)
-            {
-                if (result != null)
-                    result.Print(_symbolDictionary);
-                else
-                    Console.WriteLine();
-
-                Console.WriteLine("============================================================================");
-            }
 
             return result;
         }
 
-        public IASTNode Parse(List<Token> code)
+        public T Parse(List<Token> code)
         {
             _code = code;
             return Parse(0, 0, out _);

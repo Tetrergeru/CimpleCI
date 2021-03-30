@@ -209,7 +209,7 @@ Constuctor : Expression {
 <Statement>
 		-> Return <Expression>
 				{ return ReturnStatement($1); }
-		|  <Getter> ArrowLeft <Expression>
+		|  <Getters> ArrowLeft <Expression>
 				{ return AddStatement($0, $2); }
 
 <Expression>

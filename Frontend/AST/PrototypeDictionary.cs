@@ -35,6 +35,13 @@ namespace Frontend.AST
             return np;
         }
 
+        public NodePrototype MakeNode(string name, int fieldNumber)
+        {
+            var np = new NodePrototype(_nameById.Count, name, Object, fieldNumber);
+            Register(name, np);
+            return np;
+        }
+        
         public ListPrototype GetOrMakeList(string name)
             => _idByName.ContainsKey(name)
                 ? (ListPrototype) GetByName(name)
@@ -53,6 +60,9 @@ namespace Frontend.AST
 
         public int this[string name]
             => _idByName[name];
+        
+        public IPrototype this[int id]
+            => _nameById[id].type;
         
         public IPrototype GetByName(string name)
             => _nameById[this[name]].type;

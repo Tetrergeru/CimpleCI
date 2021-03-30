@@ -19,6 +19,11 @@ namespace Frontend.AST
 
         private int _currentField;
 
+        public void ChangeParent(NodePrototype parent)
+        {
+            _parent = parent;
+        }
+
         public NodePrototype(int id, string name, NodePrototype parent, int fieldNumber)
         {
             _id = id;

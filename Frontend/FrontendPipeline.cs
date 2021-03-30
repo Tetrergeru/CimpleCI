@@ -12,14 +12,14 @@ namespace Frontend
         private readonly RegexLexer _lexer;
         private readonly SymbolDictionary _symbolDictionary;
         private readonly PrototypeDictionary _prototypeDictionary;
-        private readonly IParser _parser;
+        private readonly IParser<IASTNode> _parser;
 
         public FrontendPipeline(string grammar)
         {
             Rules<IASTNode> rules;
-            (_lexer, _prototypeDictionary, rules) = new ParsersParser().ParseParser(grammar);
+            (_lexer, _prototypeDictionary, rules) = new ParsersParser1().ParseParser(grammar);
             _symbolDictionary = _lexer.SymbolDictionary();
-            _parser = new Ll1Parser<IASTNode>(rules, _symbolDictionary);
+            _parser = new Ll1Parser<IASTNode>(rules, _symbolDictionary, (token, id) => new ASTLeaf(token, id));
         }
 
         public IASTNode Parse(string code)

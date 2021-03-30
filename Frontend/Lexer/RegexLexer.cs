@@ -45,8 +45,8 @@ namespace Frontend.Lexer
         {
             _symbolDictionary = symbolDictionary;
             foreach (var (name, (_, isComment)) in rules)
-                _symbolDictionary.Register(name, isComment ? SymbolType.Comment : SymbolType.Terminal);
-            _symbolDictionary.Register("END", SymbolType.Terminal);
+                _symbolDictionary.GetOrRegister(name, isComment ? SymbolType.Comment : SymbolType.Terminal);
+            _symbolDictionary.GetOrRegister("END", SymbolType.Terminal);
 
 
             var strRules = string.Join("|",

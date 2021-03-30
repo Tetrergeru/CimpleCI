@@ -115,6 +115,6 @@ namespace Frontend
         }
 
         public override string ToString()
-            => string.Join("\n", _program.Select(i => i.ToString()));
+            => string.Join(" ", _program.Select(i => i.ToString()));
     }
 }
