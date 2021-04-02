@@ -1,0 +1,258 @@
+#Lex
+  Func          = "\bfunc\b"
+  TypeDef       = "\btype\b"
+  IntegerType   = "\bint\b"
+  FloatType     = "\bfloat\b"
+  Struct        = "\bstruct\b"
+  Return        = "\breturn\b"
+  Var           = "\bvar\b"
+  Colon         = ";"
+  Coma          = ","
+  Dot           = "\."
+  Minus         = "-"
+  Plus          = "\+"
+  Hyphen        = "-"
+  Star          = "\*"
+  Slash         = "\/"
+  Assign        = "="
+  LeftPar       = "\("
+  RightPar      = "\)"
+  LeftBrace     = "\{"
+  RightBrace    = "\}"
+  Integer       = "[0-9][a-zA-Z_0-9]*"
+  Float         = "[0-9]+\.[0-9]+"
+  Id            = "[a-zA-Z_][a-zA-Z_0-9]*"
+; Space         = "\s*"
+; Comment       = "\/\*.*\*\/"
+  
+#AST
+
+Program {
+    Functions: *Callable;
+    Types:     *TypeDef;
+}
+
+Callable {  }
+
+Function : Callable {
+    Name: Token;
+    Params: *Variable;
+    Result: Type;
+    Body:     Block;
+}
+
+Method : Callable {
+    Name: Token;
+    Sender: Variable;
+    Params: *Variable;
+    Result: Type;
+    Body:     Block;
+}
+
+Variable {
+    Name: Token;
+    Type: Type;
+}
+
+TypeDef {
+    Name: Token;
+    Type: Type;
+}
+
+Type { }
+
+StructType : Type {
+    Variables: *Variable;
+}
+
+IntegerType : Type {  }
+
+FloatType : Type {  }
+
+VoidType : Type {  }
+
+TypeRef : Type {
+    Name: Token;
+}
+
+Block {
+    Statements: *Statement;
+}
+
+Statement { }
+
+ReturnStatement : Statement {
+    Value: Expression;
+}
+
+ExpressionStatement : Statement {
+    Expression: Expression;
+}
+
+AssignStatement : Statement {
+    Left: Expression;
+    Right: Expression;
+}
+
+VarStatement : Statement {
+    Name: Token;
+    Type: Type;
+}
+
+VarAssignStatement : Statement {
+    Name: Token;
+    Type: Type;
+    Value: Expression;
+}
+
+Expression { }
+
+BinExpression : Expression {
+    Left: Expression;
+    Op: Token;
+    Right: Expression;
+}
+
+CallExpression : Expression {
+    Function: Expression;
+    Params: *Expression;
+}
+
+GetExpression : Expression {
+    Struct: Expression;
+    Field: Token;
+}
+
+NameExpression : Expression {
+    Name: Token;
+}
+
+IntegerConstExpression : Expression {
+    Value: Token;
+}
+
+FloatConstExpression : Expression {
+    Value: Token;
+}
+
+#Grammar
+
+<Program> 
+    -> <Function> <Program> 
+        { $1.Functions <- $0; return $1; }
+    |  <Type> <Program>
+        { $1.Types <- $0; return $1; }
+    |   { return Program(*Callable(), *TypeDef()); }
+
+<Function> 
+    -> Func Id "(" <VariableList> ")" <ReturnType> <Block>
+        { return Function($1, $3, $5, $6); }
+    |  Func "(" <Variable> ")" Id "(" <VariableList> ")" <ReturnType> <Block>
+        { return Method($4, $2, $6, $8, $9); }
+
+<Type>
+    -> "type" Id <Type>
+        { return TypeDef($1, $2); }
+
+<VariableList>
+    -> <Variable> "," <VariableList>
+        { $2 <- $1; return $2; }
+    |  <Variable>
+        { return *Variable($0); }
+    |   { return *Variable(); }
+
+<ReturnType>
+    -> <Type>
+        { return $1; }
+    |   { return VoidType(); }
+
+<Variable>
+    -> Id <Type>
+        { return Variable($0, $1); }
+
+<Block>
+    -> "{" <StatementList> "}"
+        { return Block($1); }
+
+<StatementList>
+    -> <Statement> ";" <StatementList>
+        { $2 <- $0; return $2; }
+    |     { return *Statement(); }
+
+<Type>
+    -> Struct "{" <StructureFields> "}"
+        { return StructType($2); }
+    |  IntegerType
+        { return IntegerType(); }
+    |  FloatType
+        { return FloatType(); }
+    |  Id
+        { return TypeRef($0); }
+
+<StructureFields>
+    -> <Variable> ";" <StructureFields>
+        { $2 <- $1; return $2; }
+    |   { return *Variable(); }
+
+
+/* Statements */
+
+<Statement>
+    -> Var Id <Type>
+        { return VarStatement($1, $2); }
+    |  Var Id <Type> "=" <Expression>
+        { return VarAssignStatement($1, $2, $4); }
+    |  <Expression> "=" <Expression>
+        { return AssignStatement($0, $2); }
+    |  <Expression>
+        { return ExpressionStatement($0); }
+    |  Return <Expression> 
+        { return ReturnStatement($1); }
+
+/* Expressions */
+
+<Expression>
+    -> <Addition>
+        { return $0; }
+        
+<Addition>
+    -> <Multiplication> <Add> <Addition>
+        { return BinExpression($0, $1, $2); }
+    |  <Multiplication>
+        { return $0; }
+
+<Multiplication>
+    -> <Call> <Mult> <Multiplication>
+        { return BinExpression($0, $1, $2); }
+    |  <Call>
+        { return $0; }
+
+<Add>  -> "+" { return $0; } | "-" { return $0; }
+<Mult> -> "*" { return $0; } | "/" { return $0; }
+
+<Call>
+    -> <Getter> "(" <ExpressionList> ")"
+        { return CallExpression($0, $2); }
+    |  <Getter>
+        { return $0; }
+
+<Getter>
+    -> <Primary> "." Id
+        { return GetExpression($0, $2); }
+    |  <Primary>
+        { return $0; }
+
+<Primary>
+    -> Id
+        { return NameExpression($0); }
+    |  Integer
+        { return IntegerConstExpression($0); }
+    |  Float
+        { return FloatConstExpression($0); }
+    |  "(" <Expression> ")"
+        { return $1; } 
+		
+<ExpressionList>
+	-> <Expression> "," <ExpressionList> 
+		{ $2 <- $0; return $2; }
+	|   { return *Expression(); }

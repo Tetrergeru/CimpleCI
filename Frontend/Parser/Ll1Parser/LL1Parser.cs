@@ -29,7 +29,7 @@ namespace Frontend.Parser.Ll1Parser
         private readonly Dictionary<int, IConsumer<T>> _consumers;
 
         private readonly Func<Token, int, T> _factory;
-        
+
         public Ll1Parser(Rules<T> rules, SymbolDictionary symbolDictionary, Func<Token, int, T> factory)
         {
             _symbolDictionary = symbolDictionary;
@@ -43,7 +43,8 @@ namespace Frontend.Parser.Ll1Parser
         private T ConsumeToken(int type)
         {
             if (Peek().Id != type)
-                throw new Exception($"Expected {_symbolDictionary[type].name}, got {Peek().Text} on line {Peek().Line}");
+                throw new Exception(
+                    $"Expected {_symbolDictionary[type].name}, got {Peek().Text} on line {Peek().Line}");
 
             return _factory(_code[_position++], type);
         }
@@ -62,7 +63,14 @@ namespace Frontend.Parser.Ll1Parser
                 switch (consumer)
                 {
                     case FinalConsumer<T> fc:
-                        return _rules[fc.Rule].Callback.Call(output);
+                        try
+                        {
+                            return _rules[fc.Rule].Callback.Call(output);
+                        }
+                        catch (Exception e)
+                        {
+                            throw new Exception($"Error on line {Peek().Line}: {e}");
+                        }
                     case SymbolConsumer<T> syc:
                     {
                         output.Add(syc.Action());
@@ -113,7 +121,8 @@ namespace Frontend.Parser.Ll1Parser
                         {
                             SymbolType.Terminal => () => ConsumeToken(symbol),
                             SymbolType.NonTerminal => () => ConsumeNonTerminal(symbol),
-                            _ => throw new Exception($"Unexpected symbol type {_symbolDictionary[ruleGroup.Key].symbolType}")
+                            _ => throw new Exception(
+                                $"Unexpected symbol type {_symbolDictionary[ruleGroup.Key].symbolType}")
                         },
                         nextConsumer
                     )

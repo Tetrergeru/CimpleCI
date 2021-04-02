@@ -14,6 +14,8 @@ namespace Frontend.AST
         
         public string Text => _token.Text;
         
+        public Token Token => _token;
+
         public ASTLeaf(Token token, int id)
         {
             _token = token;

@@ -23,7 +23,7 @@ namespace Frontend.Lexer
     {
         public static bool DEBUG = false;
 
-        private readonly Regex _regex;
+        private Regex _regex;
 
         private readonly SymbolDictionary _symbolDictionary;
 
@@ -53,7 +53,16 @@ namespace Frontend.Lexer
                 rules
                     .Select(kv => $"(?<{kv.terminal}>{kv.code.code})"));
 
-            _regex = new Regex($"{strRules}|.");
+            _regex = new Regex($"{strRules}|.", RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+        }
+
+        public int MatchOneToken(string terminal)
+        {
+            var token = _regex
+                .Matches(terminal)
+                .Select(ParseMatch)
+                .FirstOrDefault(x => x != null);
+            return token.Id;
         }
 
         private Token ParseMatch(Match match)

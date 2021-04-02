@@ -9,21 +9,21 @@ namespace Frontend
 {
     public class FrontendPipeline
     {
-        private readonly RegexLexer _lexer;
-        private readonly SymbolDictionary _symbolDictionary;
-        private readonly PrototypeDictionary _prototypeDictionary;
-        private readonly IParser<IASTNode> _parser;
+        public readonly RegexLexer Lexer;
+        public readonly SymbolDictionary SymbolDictionary;
+        public readonly PrototypeDictionary PrototypeDictionary;
+        public readonly IParser<IASTNode> Parser;
 
         public FrontendPipeline(string grammar)
         {
             Rules<IASTNode> rules;
-            (_lexer, _prototypeDictionary, rules) = new ParsersParser1().ParseParser(grammar);
-            _symbolDictionary = _lexer.SymbolDictionary();
-            _parser = new Ll1Parser<IASTNode>(rules, _symbolDictionary, (token, id) => new ASTLeaf(token, id));
+            (Lexer, PrototypeDictionary, rules) = new ParsersParser1().ParseParser(grammar);
+            SymbolDictionary = Lexer.SymbolDictionary();
+            Parser = new Ll1Parser<IASTNode>(rules, SymbolDictionary, (token, id) => new ASTLeaf(token, id));
         }
 
         public IASTNode Parse(string code)
-            => _parser.Parse(_lexer.ParseLexemes(code).ToList());
+            => Parser.Parse(Lexer.ParseLexemes(code).ToList());
 
         public void Print(IASTNode node)
         {
@@ -33,7 +33,7 @@ namespace Frontend
                 return;
             }
 
-            node.Print(_symbolDictionary);
+            node.Print(SymbolDictionary);
         }
     }
 }

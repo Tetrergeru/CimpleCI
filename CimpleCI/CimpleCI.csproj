@@ -62,6 +62,9 @@
       <None Update="CodeSamples\program_2.c1">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="Grammars\Gomple\Gomple.gr">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

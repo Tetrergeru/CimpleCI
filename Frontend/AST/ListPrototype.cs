@@ -6,16 +6,16 @@ namespace Frontend.AST
     {
         private int _id;
 
-        private IPrototype _type;
+        public readonly IPrototype Type;
 
         public ListPrototype(int id, IPrototype type)
         {
             _id = id;
-            _type = type;
+            Type = type;
         }
 
         public string Name()
-            => $"*{_type.Name()}"; 
+            => $"*{Type.Name()}"; 
         
         public int Id()
             => _id;

@@ -7,28 +7,28 @@ namespace Frontend.AST
 {
     public class ASTList : IASTNode
     {  
-        private readonly ListPrototype prototype;
+        public readonly ListPrototype Prototype;
 
         private readonly List<IASTNode> _values;
         
         public ASTList(ListPrototype prototype, params IASTNode[] values)
         {
-            this.prototype = prototype;
+            this.Prototype = prototype;
             _values = values.ToList();
         }
 
         public int Id()
-            => prototype.Id();
+            => Prototype.Id();
 
         public IASTNode this[string name] 
-            => _values[prototype.IdxOf(name)];
+            => _values[Prototype.IdxOf(name)];
 
         public IEnumerable<IASTNode> Enumerate()
             => _values;
 
         public void Print(SymbolDictionary sd, string offset = "")
         {
-            Console.WriteLine($"{offset}{prototype.Name()}:");
+            Console.WriteLine($"{offset}{Prototype.Name()}:");
             for (var i = 0; i < _values.Count; i++)
             {
                 Console.WriteLine($"{offset}   {i}:");
@@ -36,6 +36,9 @@ namespace Frontend.AST
             }
         }
 
+        public List<IASTNode> Values 
+            => _values;
+        
         public void Insert(IASTNode value)
         {
             _values.Insert(0, value);

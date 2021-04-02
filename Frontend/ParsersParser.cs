@@ -89,6 +89,7 @@ namespace Frontend
     {
         private PrototypeDictionary pd;
         private SymbolDictionary resultSd;
+        private RegexLexer resultLexer;
 
         private ParsersLexer pl = new ParsersLexer();
         private Ll1Parser<object> pParser;
@@ -103,6 +104,7 @@ namespace Frontend
         }
 
         public int Parser,
+            LexemeList,
             Lexer,
             Lexeme,
             Ast,
@@ -139,12 +141,18 @@ namespace Frontend
         {
             return new Rules<object>(new List<Rule<object>>
             {
-                R(Parser, /**/ pl.HashLex, Lexer, pl.HashAST, Ast, pl.HashGrammar, Grammar, pl.END).C(l => (FinalizeLexer(l[1]), FinalizeAst(l[3]), FinalizeGrammar(l[5]))),
+                R(Parser, /**/ pl.HashLex, Lexer, pl.HashAST, Ast, pl.HashGrammar, Grammar, pl.END).C(l => ((RegexLexer)l[1], FinalizeAst(l[3]), FinalizeGrammar(l[5]))),
                 
-                R(Lexer,  /**/ Lexeme, Lexer                         ).ArrayAdd<object>(1, 0),
-                R(Lexer   /**/                                       ).C(l => new List<object>()),
-                R(Lexeme, /**/ pl.Name, pl.Eq, pl.Regex              ).C(l => MakeLexeme(l[0], l[2], SymbolType.Terminal)),
-                R(Lexeme, /**/ pl.Semicolon, pl.Name, pl.Eq, pl.Regex).C(l => MakeLexeme(l[0], l[2], SymbolType.Comment)),
+                R(Lexer,      /**/ LexemeList                            ).C(l =>
+                {
+                    Console.WriteLine("Lexer");
+                    resultLexer = FinalizeLexer(l[0]);
+                    return resultLexer;
+                }),
+                R(LexemeList, /**/ Lexeme, LexemeList                    ).ArrayAdd<object>(1, 0),
+                R(LexemeList  /**/                                       ).C(l => new List<object>()),
+                R(Lexeme,     /**/ pl.Name, pl.Eq, pl.Regex              ).C(l => MakeLexeme(l[0], l[2], SymbolType.Terminal)),
+                R(Lexeme,     /**/ pl.Semicolon, pl.Name, pl.Eq, pl.Regex).C(l => MakeLexeme(l[1], l[3], SymbolType.Comment)),
                 
                 R(Ast,       /**/ AstNode, Ast                                                   ).ArrayAdd<object>(1, 0),
                 R(Ast        /**/                                                                ).C(l => new List<object>()),
@@ -166,6 +174,7 @@ namespace Frontend
                 R(SymbolSequence  /**/                                       ).MakeArray<int>(),
                 R(Symbol,         /**/ NonTerminal                           ).C(l => l[0]),
                 R(Symbol,         /**/ pl.Name                               ).C(l => resultSd[(string)l[0], SymbolType.Terminal]),
+                R(Symbol,         /**/ pl.Regex                              ).C(l => resultLexer.MatchOneToken(ParseRegexToken(l[0]))),
                 R(NonTerminal,    /**/ pl.LeftAngle, pl.Name, pl.RightAngle  ).C(l => resultSd.GetOrRegister((string)l[1], SymbolType.NonTerminal)),
                 
                 R(Callback,   /**/ pl.LeftBrace, Statements, pl.RightBrace           ).C(l => new RuleCallback((List<RuleCallback.Instruction>) l[1])),  
@@ -184,8 +193,10 @@ namespace Frontend
         }
         // @formatter:on
 
-        private static string ParseRegexToken(string regex)
-            => regex.Substring(1, regex.Length - 2);
+        private static string ParseRegexToken(object regex)
+        {
+            return ((string)regex).Substring(1, ((string)regex).Length - 2);
+        }
 
         private object MakeNode(object name, object parentName, object fields)
             => (
@@ -196,7 +207,6 @@ namespace Frontend
 
         private object MakeLexeme(object name, object regex, SymbolType type)
         {
-            resultSd.GetOrRegister((string) name, type);
             return new Lexeme((string) name, ParseRegexToken((string) regex), type == SymbolType.Comment);
         }
 

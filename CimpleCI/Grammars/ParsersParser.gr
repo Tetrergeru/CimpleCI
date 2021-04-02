@@ -86,9 +86,9 @@ Symbol {
 	Name		: Token;
 }
 
-Terminal : Symbol {}
+Terminal : Symbol { }
 
-NonTerminal : Symbol {}
+NonTerminal : Symbol { }
 
 RuleRight {
 	Sequence	: *Symbol;
@@ -99,7 +99,7 @@ Callback : {
 	Statements	: *Statement;
 }
 
-Statement {}
+Statement { }
 
 ReturnStatement : Statement {
 	Expr		: Expression;
@@ -110,7 +110,7 @@ AddStatement : Statement {
 	Value		: Expression;
 }
 
-Expression {}
+Expression { }
 
 Getter : Expression {
 	Variable	: Token;
