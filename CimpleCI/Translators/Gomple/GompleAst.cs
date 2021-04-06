@@ -95,6 +95,20 @@ namespace CimpleCI.Translators.Gomple
                 => $"({string.Join(", ", Variables)})";
         }
 
+        public class PointerType : Type
+        {
+            public Type To;
+            
+            public override bool Equals(object obj)
+                => obj is PointerType pt && To == pt.To;
+
+            public override int GetHashCode()
+                => "Pointer".GetHashCode() ^ To.GetHashCode();
+
+            public override string ToString()
+                => $"*{To}";
+        }
+        
         public class IntegerType : Type
         {
             public override bool Equals(object obj)

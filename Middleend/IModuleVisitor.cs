@@ -39,6 +39,8 @@ namespace Middleend
         T VisitReturn(Return @return);
 
         // Visit Expressions
+
+        T VisitMagicExpression(MagicExpression magicExpression);
         
         T VisitBinaryExpression(BinaryExpression binaryExpression);
 

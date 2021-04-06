@@ -22,23 +22,37 @@ namespace CimpleCI
         {
             //var pl = new ParsersLexer();
 
-            var code = @"
+            var code = 
+                
+                
+                
+                
+                @"
+type Bar struct {
+    b Bar;
+}
+
 type Foo struct {
     a int;
     b float;
     c struct { d: int; };
 }
 
+func recType() {
+    var bar Bar;
+} 
+
 func (f Foo) test() {
     f.a = 1;
+    return;
     f.test();
 }
 
 func main(x int) {
-    var foo Foo;
+    var foo *Foo;
     foo.a = 42;
-    main(1);
-    return;
+    foo.test();
+    Print(foo.a);
 }
 "; //File.ReadAllText("CodeSamples/tcp_server.c");//
             
@@ -55,6 +69,8 @@ func main(x int) {
             var inCimple0 = new GompleTranslator().VisitProgram(inTypedGomple);
             //Cimple0Translator.Parse(frontend.Parse(code))
 
+            Console.WriteLine("; Translated");
+            
             var backend = new ModulePrinter();
             Console.WriteLine(backend.VisitModule(inCimple0));
         }

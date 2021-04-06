@@ -67,6 +67,10 @@ StructType : Type {
     Variables: *Variable;
 }
 
+PointerType : Type {
+	To: Type;
+}
+
 IntegerType : Type {  }
 
 FloatType : Type {  }
@@ -192,6 +196,8 @@ FloatConstExpression : Expression {
         { return FloatType(); }
     |  Id
         { return TypeRef($0); }
+	|  Star <Type>
+		{ return PointerType($1);  }
 
 <StructureFields>
     -> <Variable> ";" <StructureFields>

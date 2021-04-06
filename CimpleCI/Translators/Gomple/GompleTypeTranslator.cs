@@ -13,16 +13,38 @@ namespace CimpleCI.Translators.Gomple
         private readonly Dictionary<(string name, GompleAst.Type receiver), GompleAst.Type> MethodSignatures =
             new Dictionary<(string name, GompleAst.Type receiver), GompleAst.Type>();
 
+        private void AddMagic()
+        {
+            AddName("Print", new GompleAst.FunctionType
+            {
+                Args = new GompleAst.StructType
+                {
+                    Variables = new List<GompleAst.Variable>
+                    {
+                        new GompleAst.Variable
+                        {
+                            Name = new Token(0, "value", 0),
+                            Type = new GompleAst.IntegerType(),
+                        },
+                    }
+                },
+                Result = new GompleAst.VoidType()
+            });
+        }
+
         public TypedGompleAst.Program VisitProgram(GompleAst.Program program)
         {
             foreach (var typeDef in program.Types)
                 NamedTypes[typeDef.Name.Text] = typeDef.Type;
             PushLayer();
 
+            AddMagic();
             foreach (var function in program.Functions)
                 switch (function.Type)
                 {
                     case GompleAst.MethodType met:
+                        if (FindMethod(met.Sender.Type, function.Name.Text) != null)
+                            throw new Exception($"Method {function.Name.Text} is duplicated");
                         MethodSignatures[(function.Name.Text, met.Sender.Type)] = function.Type;
                         break;
                     case GompleAst.FunctionType func:
@@ -48,7 +70,9 @@ namespace CimpleCI.Translators.Gomple
             foreach (var variable in function.Type.Args.Variables)
                 AddName(variable.Name.Text, variable.Type);
             if (function.Type is GompleAst.MethodType met)
+            {
                 AddName(met.Sender.Name.Text, met.Sender.Type);
+            }
 
             var result = new TypedGompleAst.Function
             {
@@ -111,7 +135,7 @@ namespace CimpleCI.Translators.Gomple
             => stack.RemoveAt(stack.Count - 1);
 
         private void AddName(string name, GompleAst.Type type)
-        => stack[^1][name] = type;
+            => stack[^1][name] = type;
 
         private Token AddToken(Token token, GompleAst.Type type)
         {
@@ -120,7 +144,10 @@ namespace CimpleCI.Translators.Gomple
         }
 
         private GompleAst.Type FindName(string name)
-            => stack.AsEnumerable().Reverse().FirstOrDefault(d => d.ContainsKey(name))?[name] ?? throw new Exception($"{name} not found");
+            => stack
+                   .AsEnumerable()
+                   .FirstOrDefault(d => d.ContainsKey(name))?[name] ??
+               throw new Exception($"{name} not found");
 
         private TypedGompleAst.Expression VisitExpression(GompleAst.Expression expression)
         {
@@ -162,33 +189,7 @@ namespace CimpleCI.Translators.Gomple
                         Name = name.Name,
                     };
                 case GompleAst.GetExpression get:
-                {
-                    var left = VisitExpression(get.Struct);
-
-                    if (MethodSignatures.ContainsKey((get.Field.Text, left.Type)))
-                        return new TypedGompleAst.GetExpression
-                        {
-                            Type = MethodSignatures[(get.Field.Text, left.Type)],
-                            Struct = left,
-                            Field = get.Field,
-                        };
-
-                    var t = left.Type;
-                    if (t is GompleAst.TypeRef)
-                        t = UnrefType(t);
-
-                    if (!(t is GompleAst.StructType str))
-                        throw new ArgumentException();
-
-                    var type = str.Variables.Select((v, i) => (v, i)).First(vi => vi.v.Name.Text == get.Field.Text)
-                        .v.Type;
-                    return new TypedGompleAst.GetExpression
-                    {
-                        Type = type,
-                        Struct = left,
-                        Field = get.Field,
-                    };
-                }
+                    return VisitGetExpression(get);
                 case GompleAst.IntegerConstExpression i:
                     return new TypedGompleAst.IntegerConstExpression
                     {
@@ -204,6 +205,63 @@ namespace CimpleCI.Translators.Gomple
                 default:
                     throw new ArgumentException();
             }
+        }
+
+        private TypedGompleAst.Expression VisitGetExpression(GompleAst.GetExpression get)
+        {
+            var left = VisitExpression(get.Struct);
+
+            var mth = FindMethod(left.Type, get.Field.Text);
+            if (mth != null)
+                return new TypedGompleAst.GetExpression
+                {
+                    Type = mth,
+                    Struct = left,
+                    Field = get.Field,
+                };
+
+            var t = left.Type;
+
+            while (t is GompleAst.PointerType || t is GompleAst.TypeRef)
+            {
+                while (t is GompleAst.PointerType pt)
+                    t = pt.To;
+                if (t is GompleAst.TypeRef)
+                    t = UnrefType(t);
+            }
+
+
+            if (!(t is GompleAst.StructType str))
+                throw new ArgumentException();
+
+            var type = str
+                .Variables
+                .Select((v, i) => (v, i))
+                .First(vi => vi.v.Name.Text == get.Field.Text)
+                .v
+                .Type;
+
+            return new TypedGompleAst.GetExpression
+            {
+                Type = type,
+                Struct = left,
+                Field = get.Field,
+            };
+        }
+
+        private GompleAst.Type FindMethod(GompleAst.Type receiver, string name)
+        {
+            if (MethodSignatures.ContainsKey((name, receiver)))
+                return MethodSignatures[(name, receiver)];
+
+            while (receiver is GompleAst.PointerType pt)
+            {
+                receiver = pt.To;
+                if (MethodSignatures.ContainsKey((name, receiver)))
+                    return MethodSignatures[(name, receiver)];
+            }
+
+            return null;
         }
 
         private GompleAst.Type UnrefType(GompleAst.Type typeRef)

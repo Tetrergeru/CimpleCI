@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using Middleend;
@@ -19,10 +20,16 @@ namespace Backend
 
         public string VisitFunction(Function function)
         {
+            _parsedTypes = new Dictionary<BaseType, int>();
             var header = $"{function.Type.AcceptVisitor(this)}";
+            _parsedTypes = new Dictionary<BaseType, int>();
             var code = function.Code.AcceptVisitor(this);
             return $"{header} {code}";
         }
+
+        private Dictionary<BaseType, int> _parsedTypes = new Dictionary<BaseType, int>();
+
+        private int _currentTypeId = 0;
 
         public string VisitEmptyType(EmptyType emptyType)
             => "Unit";
@@ -49,7 +56,24 @@ namespace Backend
             => $"*{pointerType.To.AcceptVisitor(this)}";
 
         public string VisitStructType(StructType structType)
-            => $"{{{string.Join(",", structType.Fields.Select(f => f.AcceptVisitor(this)))}}}";
+        {
+            if (_parsedTypes.ContainsKey(structType))
+            {
+                var id = _parsedTypes[structType];
+                if (id == -1)
+                {
+                    id = _currentTypeId++;
+                    _parsedTypes[structType] = id;
+                }
+                return $"@Id({id})";
+            }
+            
+            _parsedTypes[structType] = -1;
+            var result = $"{{{string.Join(",", structType.Fields.Select(f => f.AcceptVisitor(this)))}}}";;
+            if (_parsedTypes[structType] != -1)
+                result = $"Id({_parsedTypes[structType]}) = {result}";
+            return result;
+        }
 
         public string VisitArrayType(ArrayType arrayType)
             => $"[{arrayType.ElemType.AcceptVisitor(this)};{arrayType.Length}]";
@@ -78,14 +102,17 @@ namespace Backend
         public string VisitReturn(Return @return)
             => $"{Tab}return {@return.Value?.AcceptVisitor(this)};";
 
+        public string VisitMagicExpression(MagicExpression magicExpression)
+            => $"{magicExpression.Name}";
+
         public string VisitBinaryExpression(BinaryExpression binaryExpression)
             => $"({binaryExpression.Left.AcceptVisitor(this)} " +
                $"{binaryExpression.Operator.ToSymbol()} " +
                $"{binaryExpression.Right.AcceptVisitor(this)})";
 
         public string VisitUnaryExpression(UnaryExpression unaryExpression)
-            => $"{unaryExpression.Operator.ToSymbol()}" +
-               $"{unaryExpression.Right.AcceptVisitor(this)}";
+            => $"({unaryExpression.Operator.ToSymbol()}" +
+               $"{unaryExpression.Right.AcceptVisitor(this)})";
 
         public string VisitAssignExpression(AssignExpression assignExpression)
             => $"{assignExpression.Left.AcceptVisitor(this)} " +

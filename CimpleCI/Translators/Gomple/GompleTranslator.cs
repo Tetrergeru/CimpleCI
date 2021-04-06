@@ -42,20 +42,26 @@ namespace CimpleCI.Translators.Gomple
                     ),
                     AddType(methodType.Result)
                 ),
-                GompleAst.IntegerType _ => _i64,
-                GompleAst.StructType structType => new StructType(
-                    structType
-                        .Variables
-                        .Select(v => AddType(v.Type))
-                        .ToList()
-                ),
+                GompleAst.StructType structType => AddStructType(structType),
                 GompleAst.TypeRef typeRef => AddType(UnrefType(typeRef)),
+                GompleAst.PointerType pt => new PointerType(AddType(pt.To)),
                 GompleAst.VoidType _ => new EmptyType(),
                 GompleAst.FloatType _ => _f64,
-                _ => throw new ArgumentException()
+                GompleAst.IntegerType _ => _i64,
+                _ => throw new ArgumentException($"Unknown type {type}")
             };
             _typeMappings[type] = t;
             return t;
+        }
+
+        private BaseType AddStructType(GompleAst.StructType structType)
+        {
+            var result = new StructType(new List<BaseType>());
+            _typeMappings[structType] = result;
+            result.Fields.AddRange(structType
+                .Variables
+                .Select(v => AddType(v.Type)));
+            return result;
         }
 
         public GompleAst.Type UnrefType(GompleAst.Type type)
@@ -75,6 +81,8 @@ namespace CimpleCI.Translators.Gomple
         private List<Dictionary<object, (int idx, GompleAst.Type type)>> stack =
             new List<Dictionary<object, (int idx, GompleAst.Type type)>>();
 
+        private HashSet<string> _magic = new HashSet<string> {"Print"};
+
         private void PushLayer()
             => stack.Add(new Dictionary<object, (int idx, GompleAst.Type type)>());
 
@@ -92,9 +100,16 @@ namespace CimpleCI.Translators.Gomple
         }
 
         private (int idx, int depth) FindName(object name)
+            => TryFindName(name).Value;
+
+        private (int idx, int depth)? TryFindName(object name)
         {
-            var (layer, depth) = stack.AsEnumerable().Reverse().Select((v, i) => (v, i))
-                .First(d => d.v.ContainsKey(name));
+            var (layer, depth) = stack
+                .AsEnumerable()
+                .Select((v, i) => (v, i))
+                .FirstOrDefault(d => d.v.ContainsKey(name));
+            if (layer == null)
+                return null;
             return (layer[name].idx, depth);
         }
 
@@ -137,6 +152,7 @@ namespace CimpleCI.Translators.Gomple
             if (function.Type is GompleAst.MethodType met)
                 AddName(met.Sender.Name.Text, met.Sender.Type);
 
+            PushLayer();
             var stmts = VisitBlock(function.Body);
             var vars = PopLayer();
             var result = new Function(
@@ -146,16 +162,12 @@ namespace CimpleCI.Translators.Gomple
                     stmts
                 )
             );
+            PopLayer();
             return result;
         }
 
         private List<Statement> VisitBlock(TypedGompleAst.Block block)
-        {
-            PushLayer();
-            var stmts = block.Statements.Select(VisitStatement).Where(it => it != null).ToList();
-            PopLayer();
-            return stmts;
-        }
+            => block.Statements.Select(VisitStatement).Where(it => it != null).ToList();
 
         private Statement VisitStatement(TypedGompleAst.Statement statement)
             => statement switch
@@ -206,17 +218,32 @@ namespace CimpleCI.Translators.Gomple
                     new NumberType(NumberKind.SignedInteger, 64),
                     int.Parse(integerConstExpression.Value.Text)
                 ),
-                TypedGompleAst.NameExpression nameExpression => DepthGetExpression(FindName(nameExpression.Name.Text)),
+                TypedGompleAst.NameExpression nameExpression => _magic.Contains(nameExpression.Name.Text)
+                    ? new MagicExpression(nameExpression.Name.Text)
+                    : DepthGetExpression(FindName(nameExpression.Name.Text)),
                 _ => throw new ArgumentOutOfRangeException(nameof(expression) + "(" + expression + ")")
             };
         }
 
         private BinaryExpression VisitGetExpression(TypedGompleAst.GetExpression getExpression)
         {
-            var unref = _typeMapper.UnrefType(getExpression.Struct.Type);
-            if (unref is GompleAst.StructType str && GetStructFieldOffset(str, getExpression.Field) != null)
+            var structExpression = VisitExpression(getExpression.Struct);
+            var t = getExpression.Struct.Type;
+            while (t is GompleAst.TypeRef || t is GompleAst.PointerType)
+            {
+                while (t is GompleAst.PointerType pr)
+                {
+                    t = pr.To;
+                    structExpression = new UnaryExpression(OperationKind.Dereference, structExpression);
+                }
+
+                if (t is GompleAst.TypeRef)
+                    t = _typeMapper.UnrefType(t);
+            }
+
+            if (t is GompleAst.StructType str && GetStructFieldOffset(str, getExpression.Field) != null)
                 return new BinaryExpression(
-                    VisitExpression(getExpression.Struct),
+                    structExpression,
                     OperationKind.GetField,
                     new ConstExpression(
                         new NumberType(NumberKind.UnsignedInteger, 64),
@@ -229,26 +256,45 @@ namespace CimpleCI.Translators.Gomple
         private int? GetStructFieldOffset(GompleAst.StructType str, Token field)
             => str
                 .Variables
-                .Select((v, i) => (v, i))
-                .First(v => v.v.Name.Text == field.Text)
+                .Select((v, i) => ((GompleAst.Variable v, int i)?) (v, i))
+                .FirstOrDefault(v => v.Value.v.Name.Text == field.Text)?
                 .i;
 
         private CallExpression VisitCallExpression(TypedGompleAst.CallExpression callExpression)
         {
-            if (
-                callExpression.Function is TypedGompleAst.GetExpression get
-                &&
-                _program.Methods.ContainsKey((get.Field.Text, get.Struct.Type))
-            )
-                return new CallExpression(
-                    DepthGetExpression(FindName((get.Field.Text, get.Struct.Type))),
-                    new[] {get.Struct}.Concat(callExpression.Params).Select(VisitExpression).ToList()
-                );
+            if (callExpression.Function is TypedGompleAst.GetExpression get)
+            {
+                var (receiver, name) = FindMethod(get.Struct, get.Field.Text);
+                if (receiver != null)
+                    return new CallExpression(
+                        name,
+                        new[] {receiver}.Concat(callExpression.Params.Select(VisitExpression)).ToList()
+                    );
+            }
 
             return new CallExpression(
                 VisitExpression(callExpression.Function),
                 callExpression.Params.Select(VisitExpression).ToList()
             );
+        }
+
+        private (Expression receiver, Expression name) FindMethod(TypedGompleAst.Expression receiver, string name)
+        {
+            var receiverExpr = VisitExpression(receiver);
+            var type = receiver.Type;
+            do
+            {
+                var nameId = TryFindName((name, type));
+                if (nameId != null)
+                    return (DepthGetExpression(nameId.Value), receiverExpr);
+                if (type is GompleAst.PointerType pt)
+                {
+                    type = pt.To;
+                    receiverExpr = new UnaryExpression(OperationKind.Dereference, receiverExpr);
+                }
+                else
+                    return (null, null);
+            } while (true);
         }
 
         private OperationKind VisitOperationKind(Token token)
