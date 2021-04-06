@@ -31,6 +31,8 @@ namespace Middleend.Expressions
         // Pointer
         Dereference,
         Reference,
+        // Struct
+        GetField,
     }
 
     public static class OperationKindClass
@@ -58,6 +60,7 @@ namespace Middleend.Expressions
                 "!=" => OperationKind.NotEqual,
                 ">=" => OperationKind.GreaterEqual,
                 ">" => OperationKind.Greater,
+                "." => OperationKind.GetField,
                 _ => throw new ArgumentException()
             };
         
@@ -86,6 +89,7 @@ namespace Middleend.Expressions
                 OperationKind.Greater => ">",
                 OperationKind.Dereference => "*",
                 OperationKind.Reference => "&",
+                OperationKind.GetField => ".",
                 _ => throw new ArgumentException()
             };
     }

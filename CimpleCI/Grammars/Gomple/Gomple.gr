@@ -28,24 +28,13 @@
 #AST
 
 Program {
-    Functions: *Callable;
+    Functions: *Function;
     Types:     *TypeDef;
 }
 
-Callable {  }
-
-Function : Callable {
-    Name: Token;
-    Params: *Variable;
-    Result: Type;
-    Body:     Block;
-}
-
-Method : Callable {
-    Name: Token;
-    Sender: Variable;
-    Params: *Variable;
-    Result: Type;
+Function {
+	Name:     Token;
+    Type:     CallableType;
     Body:     Block;
 }
 
@@ -60,6 +49,19 @@ TypeDef {
 }
 
 Type { }
+
+CallableType : Type { }
+
+FunctionType : CallableType {
+	Args: StructType;
+	Result: Type;
+}
+
+MethodType : CallableType {
+    Sender: Variable;
+	Args: StructType;
+	Result: Type;
+}
 
 StructType : Type {
     Variables: *Variable;
@@ -80,6 +82,8 @@ Block {
 }
 
 Statement { }
+
+ReturnNothingStatement : Statement { }
 
 ReturnStatement : Statement {
     Value: Expression;
@@ -142,13 +146,13 @@ FloatConstExpression : Expression {
         { $1.Functions <- $0; return $1; }
     |  <Type> <Program>
         { $1.Types <- $0; return $1; }
-    |   { return Program(*Callable(), *TypeDef()); }
+    |   { return Program(*Function(), *TypeDef()); }
 
 <Function> 
     -> Func Id "(" <VariableList> ")" <ReturnType> <Block>
-        { return Function($1, $3, $5, $6); }
+        { return Function($1, FunctionType(StructType($3), $5), $6); }
     |  Func "(" <Variable> ")" Id "(" <VariableList> ")" <ReturnType> <Block>
-        { return Method($4, $2, $6, $8, $9); }
+        { return Function($4, MethodType($2, StructType($6), $8), $9); }
 
 <Type>
     -> "type" Id <Type>
@@ -156,7 +160,7 @@ FloatConstExpression : Expression {
 
 <VariableList>
     -> <Variable> "," <VariableList>
-        { $2 <- $1; return $2; }
+        { $2 <- $0; return $2; }
     |  <Variable>
         { return *Variable($0); }
     |   { return *Variable(); }
@@ -191,7 +195,7 @@ FloatConstExpression : Expression {
 
 <StructureFields>
     -> <Variable> ";" <StructureFields>
-        { $2 <- $1; return $2; }
+        { $2 <- $0; return $2; }
     |   { return *Variable(); }
 
 
@@ -208,6 +212,8 @@ FloatConstExpression : Expression {
         { return ExpressionStatement($0); }
     |  Return <Expression> 
         { return ReturnStatement($1); }
+    |  Return
+        { return ReturnNothingStatement(); }
 
 /* Expressions */
 
@@ -255,4 +261,6 @@ FloatConstExpression : Expression {
 <ExpressionList>
 	-> <Expression> "," <ExpressionList> 
 		{ $2 <- $0; return $2; }
+	|  <Expression>
+	    { return *Expression($0); }
 	|   { return *Expression(); }

@@ -2,11 +2,11 @@
 {
     public class NameExpression : Expression
     {
-        public readonly string Name;
+        public readonly int Depth;
 
-        public NameExpression(string name)
+        public NameExpression(int depth)
         {
-            Name = name;
+            Depth = depth;
         }
 
         public override T AcceptVisitor<T>(IModuleVisitor<T> visitor)

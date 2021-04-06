@@ -22,22 +22,41 @@ namespace CimpleCI
         {
             //var pl = new ParsersLexer();
 
-            var code = "func main(x int) { return x.y; }"; //File.ReadAllText("CodeSamples/tcp_server.c");//
+            var code = @"
+type Foo struct {
+    a int;
+    b float;
+    c struct { d: int; };
+}
 
-            var frontend =
-                new FrontendPipeline(
-                    File.ReadAllText(
-                        "Grammars/Gomple/Gomple.gr")); //new FrontendPipeline(File.ReadAllText("Grammars/grammar_0.gr")); //
+func (f Foo) test() {
+    f.a = 1;
+    f.test();
+}
 
-            Console.WriteLine("Grammar parsed");
+func main(x int) {
+    var foo Foo;
+    foo.a = 42;
+    main(1);
+    return;
+}
+"; //File.ReadAllText("CodeSamples/tcp_server.c");//
+            
+
+            var grammarFile = "Grammars/Gomple/Gomple.gr"; //"Grammars/grammar_0.gr"
+            var frontend = new FrontendPipeline(File.ReadAllText(grammarFile));
+
+            Console.WriteLine("; Grammar parsed");
 
             //frontend.Print(frontend.Parse(code));
-            
-            var ast = new AstTranslator<GompleAst>().Translate(frontend.PrototypeDictionary, frontend.Parse(code));
-            
-            //var backend = new ModulePrinter();
-            //Console.WriteLine(backend.VisitModule(Cimple0Translator.Parse(frontend.Parse(code))));
-            //Console.WriteLine("File parsed");
+
+            var inGomple = new AstTranslator<GompleAst>().Translate(frontend.PrototypeDictionary, frontend.Parse(code));
+            var inTypedGomple = new GompleTypeTranslator().VisitProgram(inGomple.program);
+            var inCimple0 = new GompleTranslator().VisitProgram(inTypedGomple);
+            //Cimple0Translator.Parse(frontend.Parse(code))
+
+            var backend = new ModulePrinter();
+            Console.WriteLine(backend.VisitModule(inCimple0));
         }
     }
 }

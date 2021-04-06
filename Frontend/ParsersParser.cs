@@ -98,7 +98,6 @@ namespace Frontend
         {
             pd = new PrototypeDictionary();
             resultSd = new SymbolDictionary();
-            resultSd.RegisterTerminal("END");
             var tokens = pl.ParseAll(code).ToList();
             return ((RegexLexer, PrototypeDictionary, Rules<IASTNode>)) pParser.Parse(tokens);
         }
@@ -143,12 +142,7 @@ namespace Frontend
             {
                 R(Parser, /**/ pl.HashLex, Lexer, pl.HashAST, Ast, pl.HashGrammar, Grammar, pl.END).C(l => ((RegexLexer)l[1], FinalizeAst(l[3]), FinalizeGrammar(l[5]))),
                 
-                R(Lexer,      /**/ LexemeList                            ).C(l =>
-                {
-                    Console.WriteLine("Lexer");
-                    resultLexer = FinalizeLexer(l[0]);
-                    return resultLexer;
-                }),
+                R(Lexer,      /**/ LexemeList                            ).C(l => FinalizeLexer(l[0])),
                 R(LexemeList, /**/ Lexeme, LexemeList                    ).ArrayAdd<object>(1, 0),
                 R(LexemeList  /**/                                       ).C(l => new List<object>()),
                 R(Lexeme,     /**/ pl.Name, pl.Eq, pl.Regex              ).C(l => MakeLexeme(l[0], l[2], SymbolType.Terminal)),
@@ -195,7 +189,7 @@ namespace Frontend
 
         private static string ParseRegexToken(object regex)
         {
-            return ((string)regex).Substring(1, ((string)regex).Length - 2);
+            return ((string) regex).Substring(1, ((string) regex).Length - 2);
         }
 
         private object MakeNode(object name, object parentName, object fields)
@@ -206,9 +200,7 @@ namespace Frontend
             );
 
         private object MakeLexeme(object name, object regex, SymbolType type)
-        {
-            return new Lexeme((string) name, ParseRegexToken((string) regex), type == SymbolType.Comment);
-        }
+            => new Lexeme((string) name, ParseRegexToken((string) regex), type == SymbolType.Comment);
 
         private static RuleCallback.Return NewReturn(object expr)
             => new RuleCallback.Return(expr as RuleCallback.Expr);
@@ -238,7 +230,7 @@ namespace Frontend
         }
 
         private RegexLexer FinalizeLexer(object lexerObj)
-            => new RegexLexer(
+            => resultLexer = new RegexLexer(
                 ((List<object>) lexerObj).Select(o => (Lexeme) o).ToList(), resultSd);
 
         private List<Rule<IASTNode>> FinalizeRule(object nonTerminal, object rights)

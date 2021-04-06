@@ -6,15 +6,12 @@ namespace Middleend
 {
     public class Function : IEntity
     {
-        public readonly string Name;
-
         public readonly FunctionType Type;
 
         public readonly Block Code;
 
-        public Function(string name, FunctionType type, Block code)
+        public Function(FunctionType type, Block code)
         {
-            Name = name;
             Type = type;
             Code = code;
         }

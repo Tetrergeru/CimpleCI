@@ -4,11 +4,11 @@ namespace Middleend.Types
 {
     public class FunctionType : BaseType
     {
-        public readonly List<(string name, BaseType type)> Params;
+        public readonly StructType Params;
 
         public readonly BaseType Result;
 
-        public FunctionType(List<(string name, BaseType type)> @params, BaseType result)
+        public FunctionType(StructType @params, BaseType result)
         {
             Params = @params;
             Result = result;

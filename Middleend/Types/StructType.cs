@@ -4,9 +4,9 @@ namespace Middleend.Types
 {
     public class StructType : BaseType
     {
-        public readonly List<(string name, BaseType type)> Fields;
+        public readonly List<BaseType> Fields;
 
-        public StructType(List<(string name, BaseType type)> fields)
+        public StructType(List<BaseType> fields)
         {
             Fields = fields;
         }

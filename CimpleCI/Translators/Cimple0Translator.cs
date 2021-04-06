@@ -11,7 +11,21 @@ namespace CimpleCI
 {
     public class Cimple0Translator
     {
-        private static BaseType u64 = new NumberType(NumberKind.UnsignedInteger, 64); 
+        private static BaseType u64 = new NumberType(NumberKind.UnsignedInteger, 64);
+
+        private List<Dictionary<string, int>> indices = new List<Dictionary<string, int>>
+            {new Dictionary<string, int>()};
+
+        private void AddName(string name, int idx) =>
+            indices[^1][name] = idx;
+
+        private (int idx, int depth) FindName(string name)
+        {
+            var (dictionary, i) = indices.AsEnumerable().Select((v, i) => (v, i)).Reverse()
+                .First(d => d.v.ContainsKey(name));
+            return (dictionary[name], i);
+        }
+
         private string VisitName(IASTNode node)
             => ((ASTLeaf) node).Text;
 
@@ -19,12 +33,18 @@ namespace CimpleCI
             => new NumberType(NumberKind.UnsignedInteger, int.Parse(VisitName(node)[1..]));
 
         private FunctionType FunctionType(IASTNode @params, BaseType returnType)
-            => new FunctionType(
-                @params
+        {
+            foreach (var (name, i) in @params
+                .Enumerate()
+                .Select((param, i) => (name: VisitName(param["Name"]), i)))
+                AddName(name, i);
+            return new FunctionType(
+                new StructType(@params
                     .Enumerate()
-                    .Select(param => (VisitName(param["Name"]), VisitType(param["Type"])))
-                    .ToList(),
+                    .Select(param => VisitType(param["Type"]))
+                    .ToList()),
                 returnType);
+        }
 
         private static HashSet<string> Assigns = new HashSet<string> {"=", "+=", "-=", "*=", "/="};
 
@@ -46,20 +66,36 @@ namespace CimpleCI
                 "BinExpression" => VisitBinExpr(expr),
                 "UnExpression" => new UnaryExpression(OperationKindClass.ParseOp(VisitName(expr["Op"]), false),
                     VisitExpression(expr["Right"])),
-                "CallExpression" => new CallExpression(new NameExpression(VisitName(expr["Function"])),
-                    expr["Params"].Enumerate().Select(VisitExpression).ToList()),
+                "CallExpression" => VisitCallExpression(expr),
                 "ConstExpression" => new ConstExpression(u64, VisitName(expr["Value"])),
-                "NameExpression" => new NameExpression(VisitName(expr["Name"])),
+                "NameExpression" => VisitNameExpression(expr),
                 "ParExpression" => new ParExpression(VisitExpression(expr["Expr"])),
                 _ => throw new ArgumentException()
             };
         }
 
+        private Expression VisitNameExpression(IASTNode expr)
+        {
+            var (idx, depth) = FindName(VisitName(expr["Name"]));
+            return new BinaryExpression(new NameExpression(depth), OperationKind.GetField, Const(idx));
+        }
+
+        private ConstExpression Const(int i)
+            => new ConstExpression(new NumberType(NumberKind.UnsignedInteger, 64), i);
+
+        private CallExpression VisitCallExpression(IASTNode expr)
+        {
+            var (idx, depth) = FindName(VisitName(expr["Function"]));
+            return new CallExpression(
+                new BinaryExpression(new NameExpression(depth), OperationKind.GetField, Const(idx)),
+                expr["Params"].Enumerate().Select(VisitExpression).ToList());
+        }
+
         private Conditional VisitConditionOperator(IASTNode @operator)
-        => new Conditional(
-            VisitExpression(@operator["Condition"]),
-            VisitBlock(@operator["If"]), 
-            VisitBlock(@operator["Else"]));
+            => new Conditional(
+                VisitExpression(@operator["Condition"]),
+                VisitBlock(@operator["If"]),
+                VisitBlock(@operator["Else"]));
 
         private Statement VisitOperator(IASTNode @operator)
         {
@@ -75,35 +111,45 @@ namespace CimpleCI
 
         private Block VisitBlock(IASTNode block)
         {
+            indices.Add(new Dictionary<string, int>());
             var statements = new List<Statement>();
-            var variables = new List<(string name, BaseType type)>();
+            var variables = new List<BaseType>();
             foreach (var astNode in block["Operators"].Enumerate())
             {
                 var op = (ASTObject) astNode;
                 switch (op.Prototype.Name())
                 {
                     case "DeclarationOperator":
-                        variables.Add((VisitName(op["Name"]), VisitType(op["Type"])));
+                        AddName(VisitName(op["Name"]), variables.Count);
+                        variables.Add(VisitType(op["Type"]));
                         break;
                     case "ArrayDeclarationOperator":
-                        variables.Add((VisitName(op["Name"]),
+                        AddName(VisitName(op["Name"]), variables.Count);
+                        variables.Add(
                             new ArrayType(VisitType(op["Type"]),
-                                int.Parse(VisitName(op["Size"])))));
+                                int.Parse(VisitName(op["Size"]))));
                         break;
                     default:
                         statements.Add(VisitOperator(op));
                         break;
                 }
             }
-            return new Block(variables, statements);
+
+            indices.RemoveAt(indices.Count - 1);
+            return new Block(new StructType(variables), statements);
         }
 
         private Function VisitFunction(IASTNode node)
-            => new Function(VisitName(node["Name"]), FunctionType(node["Params"], VisitType(node["Type"])),
-                VisitBlock(node["Block"]));
+        {
+            indices.Add(new Dictionary<string, int>());
+            var type = FunctionType(node["Params"], VisitType(node["Type"]));
+            var result = new Function(type, VisitBlock(node["Block"]));
+            indices.RemoveAt(indices.Count - 1);
+            return result;
+        }
 
         private Module VisitProgram(IASTNode program)
-            => new Module(program["Functions"].Enumerate().Select(f => (IEntity)VisitFunction(f)).ToList());
+            => new Module(program["Functions"].Enumerate().Select(f => (IEntity) VisitFunction(f)).ToList());
 
         public static Module Parse(IASTNode node)
             => new Cimple0Translator().VisitProgram(node);
