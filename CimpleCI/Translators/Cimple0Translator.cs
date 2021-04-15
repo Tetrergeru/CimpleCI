@@ -69,7 +69,7 @@ namespace CimpleCI
                 "CallExpression" => VisitCallExpression(expr),
                 "ConstExpression" => new ConstExpression(u64, VisitName(expr["Value"])),
                 "NameExpression" => VisitNameExpression(expr),
-                "ParExpression" => new ParExpression(VisitExpression(expr["Expr"])),
+                "ParExpression" => VisitExpression(expr["Expr"]),
                 _ => throw new ArgumentException()
             };
         }
@@ -77,17 +77,14 @@ namespace CimpleCI
         private Expression VisitNameExpression(IASTNode expr)
         {
             var (idx, depth) = FindName(VisitName(expr["Name"]));
-            return new BinaryExpression(new NameExpression(depth), OperationKind.GetField, Const(idx));
+            return new GetFieldExpression(new NameExpression(depth), idx);
         }
-
-        private ConstExpression Const(int i)
-            => new ConstExpression(new NumberType(NumberKind.UnsignedInteger, 64), i);
 
         private CallExpression VisitCallExpression(IASTNode expr)
         {
             var (idx, depth) = FindName(VisitName(expr["Function"]));
             return new CallExpression(
-                new BinaryExpression(new NameExpression(depth), OperationKind.GetField, Const(idx)),
+                new GetFieldExpression(new NameExpression(depth), idx),
                 expr["Params"].Enumerate().Select(VisitExpression).ToList());
         }
 

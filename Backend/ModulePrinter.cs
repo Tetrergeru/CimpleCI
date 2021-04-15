@@ -65,11 +65,13 @@ namespace Backend
                     id = _currentTypeId++;
                     _parsedTypes[structType] = id;
                 }
+
                 return $"@Id({id})";
             }
-            
+
             _parsedTypes[structType] = -1;
-            var result = $"{{{string.Join(",", structType.Fields.Select(f => f.AcceptVisitor(this)))}}}";;
+            var result = $"{{{string.Join(",", structType.Fields.Select(f => f.AcceptVisitor(this)))}}}";
+            ;
             if (_parsedTypes[structType] != -1)
                 result = $"Id({_parsedTypes[structType]}) = {result}";
             return result;
@@ -129,7 +131,7 @@ namespace Backend
         public string VisitNameExpression(NameExpression nameExpression)
             => $"<{nameExpression.Depth}>";
 
-        public string VisitParExpression(ParExpression parExpression)
-            => $"({parExpression.Expr.AcceptVisitor(this)})";
+        public string VisitGetFieldExpression(GetFieldExpression expression)
+            => $"({expression.Left.AcceptVisitor(this)}.{expression.Field})";
     }
 }

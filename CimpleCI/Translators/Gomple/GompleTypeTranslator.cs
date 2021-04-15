@@ -232,7 +232,7 @@ namespace CimpleCI.Translators.Gomple
 
 
             if (!(t is GompleAst.StructType str))
-                throw new ArgumentException();
+                throw new ArgumentException($"{t} is not struct");
 
             var type = str
                 .Variables

@@ -1,4 +1,5 @@
-﻿using Middleend.Expressions;
+﻿using System;
+using Middleend.Expressions;
 using Middleend.Statements;
 using Middleend.Types;
 
@@ -9,39 +10,39 @@ namespace Middleend
         T VisitModule(Module module);
 
         // Visit Entities
-        
+
         T VisitFunction(Function function);
-        
+
         // Visit Types
 
-        T VisitEmptyType(EmptyType emptyType);
+        T VisitEmptyType(EmptyType emptyType) => throw new NotImplementedException();
 
-        T VisitFunctionType(FunctionType functionType);
+        T VisitFunctionType(FunctionType functionType) => throw new NotImplementedException();
 
-        T VisitNumberType(NumberType numberType);
+        T VisitNumberType(NumberType numberType) => throw new NotImplementedException();
 
-        T VisitPointerType(PointerType pointerType);
+        T VisitPointerType(PointerType pointerType) => throw new NotImplementedException();
 
-        T VisitStructType(StructType structType);
+        T VisitStructType(StructType structType) => throw new NotImplementedException();
 
-        T VisitArrayType(ArrayType arrayType);
-        
+        T VisitArrayType(ArrayType arrayType) => throw new NotImplementedException();
+
         // Visit Statements
-        
+
         T VisitBlock(Block block);
-        
+
         T VisitConditional(Conditional conditional);
-        
+
         T VisitCycle(Cycle cycle);
-        
+
         T VisitExpressionStatement(ExpressionStatement expressionStatement);
-        
+
         T VisitReturn(Return @return);
 
         // Visit Expressions
 
         T VisitMagicExpression(MagicExpression magicExpression);
-        
+
         T VisitBinaryExpression(BinaryExpression binaryExpression);
 
         T VisitUnaryExpression(UnaryExpression unaryExpression);
@@ -54,6 +55,6 @@ namespace Middleend
 
         T VisitNameExpression(NameExpression nameExpression);
 
-        T VisitParExpression(ParExpression parExpression);
+        T VisitGetFieldExpression(GetFieldExpression expression);
     }
 }

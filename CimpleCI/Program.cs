@@ -1,8 +1,10 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net.NetworkInformation;
 using System.Runtime;
 using Backend;
+using Backend.NasmCompiler;
 using CimpleCI.Translators.Gomple;
 using Frontend;
 
@@ -22,14 +24,10 @@ namespace CimpleCI
         {
             //var pl = new ParsersLexer();
 
-            var code = 
-                
-                
-                
-                
+            var code =
                 @"
 type Bar struct {
-    b Bar;
+    b *Bar;
 }
 
 type Foo struct {
@@ -54,8 +52,30 @@ func main(x int) {
     foo.test();
     Print(foo.a);
 }
-"; //File.ReadAllText("CodeSamples/tcp_server.c");//
-            
+";
+            code = @"
+type Foo struct {
+    a int;
+    b int;
+}
+
+func Test(foo Foo, bar int) {
+   Print(foo.a);
+   Print(bar);
+}
+
+func Main() {
+    var foo Foo;
+    var bar Foo;
+    bar.a = 42;
+    foo = bar;
+    Print(foo.a);
+}
+
+";
+
+            //File.ReadAllText("CodeSamples/tcp_server.c");//
+
 
             var grammarFile = "Grammars/Gomple/Gomple.gr"; //"Grammars/grammar_0.gr"
             var frontend = new FrontendPipeline(File.ReadAllText(grammarFile));
@@ -70,9 +90,11 @@ func main(x int) {
             //Cimple0Translator.Parse(frontend.Parse(code))
 
             Console.WriteLine("; Translated");
-            
-            var backend = new ModulePrinter();
-            Console.WriteLine(backend.VisitModule(inCimple0));
+
+            var printer = new ModulePrinter();
+            Console.WriteLine(printer.VisitModule(inCimple0));
+            var backend = new NasmCompiler();
+            Console.WriteLine(string.Join("\n", backend.VisitModule(inCimple0).ToList()));
         }
     }
 }

@@ -6,6 +6,7 @@ using Middleend;
 using Middleend.Expressions;
 using Middleend.Statements;
 using Middleend.Types;
+// ReSharper disable PossibleInvalidOperationException
 
 namespace CimpleCI.Translators.Gomple
 {
@@ -114,10 +115,9 @@ namespace CimpleCI.Translators.Gomple
         }
 
         private Expression DepthGetExpression((int idx, int depth) place)
-            => new BinaryExpression(
+            => new GetFieldExpression(
                 new NameExpression(place.depth),
-                OperationKind.GetField,
-                new ConstExpression(new NumberType(NumberKind.UnsignedInteger, 64), place.idx)
+                place.idx
             );
 
         public Module VisitProgram(TypedGompleAst.Program program)
@@ -138,6 +138,10 @@ namespace CimpleCI.Translators.Gomple
                 }
             }
 
+            var (function, idx) = program.Functions.Select((f, i) => (f, i)).First(fi => fi.f.Name.Text == "Main");
+            program.Functions.RemoveAt(idx);
+            program.Functions.Insert(0, function);
+            
             var result = new Module(program.Functions.Select(func => (IEntity) VisitFunction(func)).ToList());
             PopLayer();
             return result;
@@ -225,7 +229,7 @@ namespace CimpleCI.Translators.Gomple
             };
         }
 
-        private BinaryExpression VisitGetExpression(TypedGompleAst.GetExpression getExpression)
+        private GetFieldExpression VisitGetExpression(TypedGompleAst.GetExpression getExpression)
         {
             var structExpression = VisitExpression(getExpression.Struct);
             var t = getExpression.Struct.Type;
@@ -242,14 +246,7 @@ namespace CimpleCI.Translators.Gomple
             }
 
             if (t is GompleAst.StructType str && GetStructFieldOffset(str, getExpression.Field) != null)
-                return new BinaryExpression(
-                    structExpression,
-                    OperationKind.GetField,
-                    new ConstExpression(
-                        new NumberType(NumberKind.UnsignedInteger, 64),
-                        GetStructFieldOffset(str, getExpression.Field)
-                    )
-                );
+                return new GetFieldExpression(structExpression, GetStructFieldOffset(str, getExpression.Field).Value);
             throw new ArgumentException();
         }
 
