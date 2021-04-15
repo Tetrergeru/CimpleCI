@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Reflection.Metadata;
 using Middleend.Statements;
 
 namespace Backend.NasmCompiler
@@ -18,8 +20,10 @@ namespace Backend.NasmCompiler
             Shft = shift;
         }
 
+        private static char Sign(int val) => val < 0 ? '-' : '+';
+
         public override string ToString()
-            => $"{Register} + {Shft}";
+            => $"{Register} {Sign(Shft)} {Math.Abs(Shft)}";
     }
 
     public abstract class AnyRegister : Operand
@@ -52,7 +56,7 @@ namespace Backend.NasmCompiler
             Address = address;
             Size = size;
         }
-        
+
         private static readonly Dictionary<int, string> Sizes = new Dictionary<int, string>
         {
             [8] = "qword",
@@ -60,7 +64,7 @@ namespace Backend.NasmCompiler
             [2] = "word",
             [1] = "byte",
         };
-        
+
         public override string ToString()
             => $"{Sizes[Size]} [{Address}]";
     }
@@ -93,26 +97,27 @@ namespace Backend.NasmCompiler
             R14 = new Register(RegisterId.R14, 8),
             R15 = new Register(RegisterId.R15, 8);
 
-        public static Dictionary<(RegisterId id, int size), string> _names = new Dictionary<(RegisterId id, int size), string>
-        {
-            [(RegisterId.A, 8)] = "rax",
-            [(RegisterId.B, 8)] = "rbx",
-            [(RegisterId.C, 8)] = "rcx",
-            [(RegisterId.D, 8)] = "rdx",
-            [(RegisterId.Sp, 8)] = "rsp",
-            [(RegisterId.Bp, 8)] = "rbp",
-            [(RegisterId.Si, 8)] = "rsi",
-            [(RegisterId.Di, 8)] = "rdi",
-            [(RegisterId.R8, 8)] = "r8",
-            [(RegisterId.R9, 8)] = "r9",
-            [(RegisterId.R10, 8)] = "r10",
-            [(RegisterId.R11, 8)] = "r11",
-            [(RegisterId.R12, 8)] = "r12",
-            [(RegisterId.R13, 8)] = "r13",
-            [(RegisterId.R14, 8)] = "r14",
-            [(RegisterId.R15, 8)] = "r15",
-        };
-        
+        public static Dictionary<(RegisterId id, int size), string> _names =
+            new Dictionary<(RegisterId id, int size), string>
+            {
+                [(RegisterId.A, 8)] = "rax",
+                [(RegisterId.B, 8)] = "rbx",
+                [(RegisterId.C, 8)] = "rcx",
+                [(RegisterId.D, 8)] = "rdx",
+                [(RegisterId.Sp, 8)] = "rsp",
+                [(RegisterId.Bp, 8)] = "rbp",
+                [(RegisterId.Si, 8)] = "rsi",
+                [(RegisterId.Di, 8)] = "rdi",
+                [(RegisterId.R8, 8)] = "r8",
+                [(RegisterId.R9, 8)] = "r9",
+                [(RegisterId.R10, 8)] = "r10",
+                [(RegisterId.R11, 8)] = "r11",
+                [(RegisterId.R12, 8)] = "r12",
+                [(RegisterId.R13, 8)] = "r13",
+                [(RegisterId.R14, 8)] = "r14",
+                [(RegisterId.R15, 8)] = "r15",
+            };
+
         public enum RegisterId
         {
             A,
@@ -132,7 +137,7 @@ namespace Backend.NasmCompiler
             R14,
             R15,
         }
-        
+
         public override string ToString()
             => $"{_names[(Id, Size)]}";
     }
@@ -145,7 +150,7 @@ namespace Backend.NasmCompiler
         {
             Value = value;
         }
-        
+
         public override string ToString()
             => $"{Value}";
     }
@@ -158,7 +163,7 @@ namespace Backend.NasmCompiler
         {
             Name = name;
         }
-        
+
         public override string ToString()
             => $"{Name}";
     }

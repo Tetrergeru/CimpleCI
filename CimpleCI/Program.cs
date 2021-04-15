@@ -7,6 +7,7 @@ using Backend;
 using Backend.NasmCompiler;
 using CimpleCI.Translators.Gomple;
 using Frontend;
+using Middleend.Types;
 
 namespace CimpleCI
 {
@@ -22,79 +23,57 @@ namespace CimpleCI
 
         static void Main()
         {
-            //var pl = new ParsersLexer();
-
-            var code =
-                @"
-type Bar struct {
-    b *Bar;
-}
-
-type Foo struct {
-    a int;
-    b float;
-    c struct { d: int; };
-}
-
-func recType() {
-    var bar Bar;
-} 
-
-func (f Foo) test() {
-    f.a = 1;
-    return;
-    f.test();
-}
-
-func main(x int) {
-    var foo *Foo;
-    foo.a = 42;
-    foo.test();
-    Print(foo.a);
-}
-";
-            code = @"
-type Foo struct {
-    a int;
-    b int;
-}
-
-func Test(foo Foo, bar int) {
-   Print(foo.a);
-   Print(bar);
-}
-
-func Main() {
-    var foo Foo;
-    var bar Foo;
-    bar.a = 42;
-    foo = bar;
-    Print(foo.a);
-}
-
-";
-
-            //File.ReadAllText("CodeSamples/tcp_server.c");//
-
-
-            var grammarFile = "Grammars/Gomple/Gomple.gr"; //"Grammars/grammar_0.gr"
+            var grammarFile = "Grammars/Gomple/Gomple.gr";
             var frontend = new FrontendPipeline(File.ReadAllText(grammarFile));
+            
+            
+            var programNameBase = "program_0";
+            
+            var code = File.ReadAllText($"CodeSamples/Gomple/{programNameBase}.go");
+            
 
             Console.WriteLine("; Grammar parsed");
-
-            //frontend.Print(frontend.Parse(code));
 
             var inGomple = new AstTranslator<GompleAst>().Translate(frontend.PrototypeDictionary, frontend.Parse(code));
             var inTypedGomple = new GompleTypeTranslator().VisitProgram(inGomple.program);
             var inCimple0 = new GompleTranslator().VisitProgram(inTypedGomple);
-            //Cimple0Translator.Parse(frontend.Parse(code))
 
             Console.WriteLine("; Translated");
 
             var printer = new ModulePrinter();
-            Console.WriteLine(printer.VisitModule(inCimple0));
+            Debug(printer.VisitModule(inCimple0));
+
             var backend = new NasmCompiler();
-            Console.WriteLine(string.Join("\n", backend.VisitModule(inCimple0).ToList()));
+            var inNasm = backend.VisitModule(inCimple0).Select(o => o.ToString()).ToList();
+
+            Debug(string.Join("\n", inNasm));
+            
+            File.WriteAllLines($"{programNameBase}.asm", inNasm);
+            var prc = System.Diagnostics.Process.Start("CMD.exe", $"/C nasm -f win64 {programNameBase}.asm");
+            if (prc == null)
+            {
+                Console.WriteLine("Could not start nasm compiler");
+                return;
+            }
+            prc.WaitForExit();
+
+            prc = System.Diagnostics.Process.Start("CMD.exe",
+                $"/C golink /console {programNameBase}.obj kernel32.dll MSVCRT.dll Ws2_32.dll");
+            if (prc == null)
+            {
+                Console.WriteLine("Could not start golink linker");
+                return;
+            }
+            prc.WaitForExit();
+
+            prc = System.Diagnostics.Process.Start($"{programNameBase}.exe", $"");
+            if (prc == null)
+            {
+                Console.WriteLine("Could not run program");
+                return;
+            }
+            prc.WaitForExit();
+            //*/
         }
     }
 }

@@ -65,6 +65,9 @@
       <None Update="Grammars\Gomple\Gomple.gr">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="CodeSamples\Gomple\program_0.go">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>
