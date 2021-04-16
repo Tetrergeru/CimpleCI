@@ -221,6 +221,11 @@ namespace CimpleCI.Translators.Gomple
         public class GetExpression : Expression
         {
             public Expression Struct;
+            public List<GetterField> Field;
+        }
+
+        public class GetterField
+        {
             public Token Field;
         }
 

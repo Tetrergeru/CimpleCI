@@ -11,12 +11,12 @@ func Main() {
     foo.a.b = 1;
     foo.a.c = 2;
     foo.d = 6;
-    Test(foo, 7);
+    foo.Test(7);
 }
 
-func Test(foo Foo, bar int) {
-   Print(foo.a.b);
-   Print(foo.a.c);
-   Print(foo.d);
-   Print(bar);
+func (foo Foo) Test(bar int) {
+    Print(foo.a.b);
+    Print(foo.a.c);
+    Print(foo.d);
+    Print(bar);
 }

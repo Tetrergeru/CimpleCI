@@ -6,6 +6,7 @@ using Middleend;
 using Middleend.Expressions;
 using Middleend.Statements;
 using Middleend.Types;
+
 // ReSharper disable PossibleInvalidOperationException
 
 namespace CimpleCI.Translators.Gomple
@@ -141,7 +142,7 @@ namespace CimpleCI.Translators.Gomple
             var (function, idx) = program.Functions.Select((f, i) => (f, i)).First(fi => fi.f.Name.Text == "Main");
             program.Functions.RemoveAt(idx);
             program.Functions.Insert(0, function);
-            
+
             var result = new Module(program.Functions.Select(func => (IEntity) VisitFunction(func)).ToList());
             PopLayer();
             return result;
@@ -151,10 +152,10 @@ namespace CimpleCI.Translators.Gomple
         {
             PushLayer();
 
-            foreach (var variable in function.Type.Args.Variables)
-                AddName(variable.Name.Text, variable.Type);
             if (function.Type is GompleAst.MethodType met)
                 AddName(met.Sender.Name.Text, met.Sender.Type);
+            foreach (var variable in function.Type.Args.Variables)
+                AddName(variable.Name.Text, variable.Type);
 
             PushLayer();
             var stmts = VisitBlock(function.Body);
@@ -283,7 +284,7 @@ namespace CimpleCI.Translators.Gomple
             {
                 var nameId = TryFindName((name, type));
                 if (nameId != null)
-                    return (DepthGetExpression(nameId.Value), receiverExpr);
+                    return (receiverExpr, DepthGetExpression(nameId.Value));
                 if (type is GompleAst.PointerType pt)
                 {
                     type = pt.To;

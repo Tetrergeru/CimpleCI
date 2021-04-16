@@ -207,20 +207,29 @@ namespace CimpleCI.Translators.Gomple
             }
         }
 
-        private TypedGompleAst.Expression VisitGetExpression(GompleAst.GetExpression get)
+        private TypedGompleAst.Expression VisitGetExpression(GompleAst.GetExpression get, int getter = 0)
         {
-            var left = VisitExpression(get.Struct);
+            if (getter == get.Field.Count)
+            {
+                var left = VisitExpression(get.Struct);
+                return left;
+            }
+            
+            var getLeft = VisitGetExpression(get, getter + 1);
+            
+            var t = getLeft.Type;
 
-            var mth = FindMethod(left.Type, get.Field.Text);
+            var getterIdx = get.Field.Count - getter - 1;
+            
+            var mth = FindMethod(t, get.Field[getterIdx].Field.Text);
             if (mth != null)
                 return new TypedGompleAst.GetExpression
                 {
                     Type = mth,
-                    Struct = left,
-                    Field = get.Field,
+                    Struct = VisitGetExpression(get, getter + 1),
+                    Field = get.Field[getterIdx].Field,
                 };
 
-            var t = left.Type;
 
             while (t is GompleAst.PointerType || t is GompleAst.TypeRef)
             {
@@ -229,23 +238,22 @@ namespace CimpleCI.Translators.Gomple
                 if (t is GompleAst.TypeRef)
                     t = UnrefType(t);
             }
-
-
+            
             if (!(t is GompleAst.StructType str))
                 throw new ArgumentException($"{t} is not struct");
 
             var type = str
                 .Variables
                 .Select((v, i) => (v, i))
-                .First(vi => vi.v.Name.Text == get.Field.Text)
+                .First(vi => vi.v.Name.Text == get.Field[getterIdx].Field.Text)
                 .v
                 .Type;
 
             return new TypedGompleAst.GetExpression
             {
                 Type = type,
-                Struct = left,
-                Field = get.Field,
+                Struct = VisitGetExpression(get, getter + 1),
+                Field = get.Field[getterIdx].Field,
             };
         }
 

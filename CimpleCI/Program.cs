@@ -1,13 +1,10 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Runtime;
 using Backend;
 using Backend.NasmCompiler;
 using CimpleCI.Translators.Gomple;
 using Frontend;
-using Middleend.Types;
 
 namespace CimpleCI
 {
@@ -34,14 +31,20 @@ namespace CimpleCI
 
             Console.WriteLine("; Grammar parsed");
 
-            var inGomple = new AstTranslator<GompleAst>().Translate(frontend.PrototypeDictionary, frontend.Parse(code));
+            var inAst = frontend.Parse(code);
+            
+            //frontend.Print(inAst);
+            
+            var inGomple = new AstTranslator<GompleAst>().Translate(frontend.PrototypeDictionary, inAst);
             var inTypedGomple = new GompleTypeTranslator().VisitProgram(inGomple.program);
             var inCimple0 = new GompleTranslator().VisitProgram(inTypedGomple);
 
             Console.WriteLine("; Translated");
 
             var printer = new ModulePrinter();
+            debug = true;
             Debug(printer.VisitModule(inCimple0));
+            debug = false;
 
             var backend = new NasmCompiler();
             var inNasm = backend.VisitModule(inCimple0).Select(o => o.ToString()).ToList();
