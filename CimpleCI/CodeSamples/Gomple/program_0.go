@@ -8,10 +8,11 @@
 
 func Main() {
     var foo Foo;
+    var bar int = 7;
     foo.a.b = 1;
     foo.a.c = 2;
     foo.d = 6;
-    foo.Test(7);
+    foo.Test(bar);
 }
 
 func (foo Foo) Test(bar int) {

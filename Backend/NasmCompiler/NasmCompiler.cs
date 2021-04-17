@@ -110,6 +110,8 @@ namespace Backend.NasmCompiler
             }
             else
                 yield return new Ret();
+
+            yield return new AsmLine($"; {FunctionFrame}");
         }
 
         public IEnumerable<Operation> VisitBlock(Block block)
@@ -126,26 +128,38 @@ namespace Backend.NasmCompiler
             FunctionFrame -= LocalVariables;
         }
 
-        public IEnumerable<Operation> VisitExpressionStatement(ExpressionStatement expressionStatement)
+        private IEnumerable<Operation> PrepareAndOptimize(IEnumerable<Operation> code)
         {
-            var expressions = expressionStatement.Expr.AcceptVisitor(this);
-            return RegisterDevirtualizer.DevirtualizeRegisters(expressions
+            return RegisterDevirtualizer.DevirtualizeRegisters(code
                 .Where(op => !(
                         op is BinaryOperation bo && bo.Op == BinaryOperation.OpCode.Add &&
                         bo.Right is Constant c && c.Value == 0
                     )
                 )
-                .ToList()
-            );
+                .ToList());
+        }
+
+        public IEnumerable<Operation> VisitExpressionStatement(ExpressionStatement expressionStatement)
+        {
+            var expressions = expressionStatement.Expr.AcceptVisitor(this);
+            return PrepareAndOptimize(expressions);
         }
 
         public IEnumerable<Operation> VisitReturn(Return @return)
         {
-            yield return Operation.Add(Register.Rsp, FunctionFrame);
-            FunctionFrame = 0;
+            yield return Operation.Add(Register.Rsp, FunctionFrame - LocalParams);
+
+            if (@return.Value != null)
+            {
+                var value = @return.Value.AcceptVisitor(this).ToList();
+                var movToRax = Operation.Mov(Register.Rax, LastRegister);
+                foreach (var op in PrepareAndOptimize(value.Append(movToRax)))
+                    yield return op;
+            }
+
+            FunctionFrame = LocalParams;
             yield return Operation.Jump(_ret);
         }
-
 
         public IEnumerable<Operation> VisitMagicExpression(MagicExpression magicExpression)
             => new[] {Operation.Mov(NewRegister(8), new NameOperand(magicExpression.Name))};
@@ -175,7 +189,6 @@ namespace Backend.NasmCompiler
             }
         }
 
-
         public int ParameterOffset()
             => FunctionFrame;
 
@@ -184,9 +197,6 @@ namespace Backend.NasmCompiler
 
         public int VariableOffset()
             => FunctionFrame - LocalParams - LocalVariables;
-
-        public int VariableOffset(StructType str, int idx)
-            => VariableOffset() + TypeEvaluator.GetOffset(str, idx);
 
         public IEnumerable<Operation> VisitGetFieldExpression(GetFieldExpression expression)
         {
@@ -210,12 +220,10 @@ namespace Backend.NasmCompiler
             if (expression.Left is NameExpression ne && ne.Depth == 1)
             {
                 var (onStack, idx) = CurrentFunctionParams.Params[expression.Field];
-                yield return new AsmLine("; here 1");
                 yield return Operation.Mov(
                     NewRegister(8),
                     new Memory(new Shift(Register.Rsp, ParameterOffset(onStack, idx)), size)
                 );
-                yield return new AsmLine("; here 2");
                 yield break;
             }
 
@@ -225,7 +233,7 @@ namespace Backend.NasmCompiler
 
             yield return Operation.Mov(
                 NewRegister(size),
-                new Memory(new Shift(adr, VariableOffset(str, expression.Field)), adr.Size)
+                new Memory(new Shift(adr, TypeEvaluator.GetOffset(str, expression.Field)), adr.Size)
             );
         }
 
@@ -247,11 +255,11 @@ namespace Backend.NasmCompiler
                 yield return op;
             var destAdr = LastRegister;
 
-            if (type is NumberType || type is PointerType)
+            if (SimpleTypeSize(type) is {} size && size > 0)
             {
                 foreach (var op in assignExpression.Right.AcceptVisitor(this))
                     yield return op;
-                yield return Operation.Mov(new Memory(destAdr, TypeEvaluator.SizeOf(type)), LastRegister);
+                yield return Operation.Mov(new Memory(destAdr, size), LastRegister);
                 yield break;
             }
 
@@ -309,9 +317,7 @@ namespace Backend.NasmCompiler
         {
             var type = (FunctionType) Types.TypeOf(callExpression.Function);
             var pars = FunctionParams[type];
-            var
-                offset = TypeEvaluator.RoundBy8(
-                    TypeEvaluator.SizeOf(pars.StackStruct)); //pars.StackStruct.Fields.Count == 0 ? 0 : 0; //
+            var offset = TypeEvaluator.RoundBy8(TypeEvaluator.SizeOf(pars.StackStruct));
             FunctionFrame += offset;
             yield return Operation.Sub(Register.Rsp, offset);
 
@@ -346,14 +352,25 @@ namespace Backend.NasmCompiler
                 yield return op;
             var func = LastRegister;
 
-
             foreach (var (res, i) in registerResults.Select((v, i) => (v, i)))
                 yield return Operation.Mov(Params[i], res);
+
             yield return new UnaryOperation(UnaryOperation.OpCode.Call, func);
 
             FunctionFrame -= offset;
             yield return Operation.Add(Register.Rsp, offset);
+
+            if (SimpleTypeSize(type.Result) is { } size && size > 0)
+                yield return Operation.Mov(NewRegister(size), Register.Rax);
         }
+
+        public int SimpleTypeSize(BaseType type)
+            => type switch
+            {
+                NumberType nt => (nt.BitSize / 8),
+                PointerType _ => 8,
+                _ => 0
+            };
 
         public IEnumerable<Operation> VisitConstExpression(ConstExpression constExpression)
         {

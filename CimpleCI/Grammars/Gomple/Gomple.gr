@@ -175,7 +175,7 @@ FloatConstExpression : Expression {
 
 <ReturnType>
     -> <Type>
-        { return $1; }
+        { return $0; }
     |   { return VoidType(); }
 
 <Variable>

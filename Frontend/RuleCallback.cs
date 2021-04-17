@@ -99,19 +99,25 @@ namespace Frontend
 
         public IASTNode Call(IReadOnlyList<IASTNode> args)
         {
-            foreach (var instruction in _program)
+            try
             {
-                switch (instruction)
+                foreach (var instruction in _program)
                 {
-                    case Return ret:
-                        return ret.Eval(args);
-                    case Add add:
-                        add.Eval(args);
-                        break;
+                    switch (instruction)
+                    {
+                        case Return ret:
+                            return ret.Eval(args);
+                        case Add add:
+                            add.Eval(args);
+                            break;
+                    }
                 }
+                throw new Exception("There was no return Instruction");
             }
-
-            throw new Exception("There was no return Instruction");
+            catch (Exception e)
+            {
+                throw new Exception($"{e} in {this}");
+            }
         }
 
         public override string ToString()

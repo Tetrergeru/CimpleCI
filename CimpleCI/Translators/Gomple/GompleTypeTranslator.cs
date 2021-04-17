@@ -157,7 +157,7 @@ namespace CimpleCI.Translators.Gomple
                 {
                     var left = VisitExpression(bin.Left);
                     var right = VisitExpression(bin.Right);
-                    if (left.Type != right.Type)
+                    if (!left.Type.Equals(right.Type))
                         throw new Exception($"Type mismatch {left.Type} != {right.Type}");
                     return new TypedGompleAst.BinExpression
                     {

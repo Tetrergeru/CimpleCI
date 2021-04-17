@@ -24,7 +24,7 @@ namespace CimpleCI
             var frontend = new FrontendPipeline(File.ReadAllText(grammarFile));
             
             
-            var programNameBase = "program_0";
+            var programNameBase = "program_1";
             
             var code = File.ReadAllText($"CodeSamples/Gomple/{programNameBase}.go");
             
